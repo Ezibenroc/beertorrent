@@ -1,0 +1,15 @@
+*~
+*.swp
+
+#C::B
+*.cbp
+*.layout
+
+#XCode
+
+#Compiles
+*.o
+obj/
+tracker
+peerclient
+troll.jpg
