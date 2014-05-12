@@ -5,6 +5,8 @@
 
 #include "client.h"
 #include "peerfunc.h"
+#include "common.h"
+
 
 int main(int argc, char *argv[]) {
     struct beerTorrent *torrent ;

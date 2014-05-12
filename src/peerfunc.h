@@ -13,6 +13,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <pthread.h>
 
 #define PROTO_VERSION 2
 #define PORTTRACKER 3955
@@ -59,6 +60,12 @@ struct proto_client_handshake
     u_int filehash;
     u_int peerId;
 };
+
+struct proto_peer {
+    struct proto_tracker_peerentry *peer ;
+    int sockfd ; /* socket attachée à ce client */
+};
+
 #define HANDSHAKE_SIZE 9 /* Ne pas faire confiance à sizeof pour les structures */
 
 struct proto_client_messageheader

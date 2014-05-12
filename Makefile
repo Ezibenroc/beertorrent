@@ -1,8 +1,8 @@
 CC=gcc
 
-CFLAGS= -g -O3 -lpthread -D_REENTRANT -Werror -W -Wextra -Wcast-qual -Wcast-align -Wfloat-equal -Wshadow -Wpointer-arith -Wunreachable-code -Wchar-subscripts -Wcomment -Wformat -Werror-implicit-function-declaration -Wmain -Wmissing-braces -Wparentheses -Wsequence-point -Wreturn-type -Wswitch -Wuninitialized -Wundef -Wshadow -Wwrite-strings -Wsign-compare -pedantic -Wconversion -Wmissing-noreturn -Wall -Wunused -Wsign-conversion -Wunused -Wstrict-aliasing -Wstrict-overflow -Wconversion -Wdisabled-optimization -Wlogical-op -Wunsafe-loop-optimizations
+CFLAGS= -g -O3 -lpthread -D_REENTRANT -W -Wextra -Wcast-qual -Wcast-align -Wfloat-equal -Wshadow -Wpointer-arith -Wunreachable-code -Wchar-subscripts -Wcomment -Wformat -Werror-implicit-function-declaration -Wmain -Wmissing-braces -Wparentheses -Wsequence-point -Wreturn-type -Wswitch -Wuninitialized -Wundef -Wshadow -Wwrite-strings -Wsign-compare -pedantic -Wconversion -Wmissing-noreturn -Wall -Wunused -Wsign-conversion -Wunused -Wstrict-aliasing -Wstrict-overflow -Wconversion -Wdisabled-optimization -Wlogical-op -Wunsafe-loop-optimizations # -Werror
 
-EXEC=setup tracker client
+EXEC=setup tracker client test_name
 
 all: $(EXEC)
 
@@ -17,12 +17,25 @@ obj/peerfunc.o: src/peerfunc.c src/peerfunc.h
 	
 obj/client.o: src/client.c src/client.h
 	$(CC) -c -o $@ $< $(CFLAGS)
+	
+obj/common.o: src/common.c src/common.h
+	$(CC) -c -o $@ $< $(CFLAGS)
+	
+obj/rename.o: src/rename.c src/rename.h
+	$(CC) -c -o $@ $< $(CFLAGS)
 
 tracker: obj/tracker.o
 	gcc -o $@ $^ $(CFLAGS)
 	
-client: obj/client.o obj/peerfunc.o
+client: obj/client.o obj/peerfunc.o obj/common.o
 	gcc -o $@ $^ $(CFLAGS)
 	
 clean:
 	rm -rf obj $(EXEC) *~ */*~
+	
+############### TESTS
+obj/test_name.o: test/test_name.c
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+test_name: obj/test_name.o obj/rename.o
+	gcc -o $@ $^ $(CFLAGS)
