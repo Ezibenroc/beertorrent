@@ -9,10 +9,6 @@
 
 #define ID_MAX 254
 
-/* Taille de la map, et nom du prochain nouvel ID. */
-u_short map_size  ;
-pthread_mutex_t size_lock ;
-
 
 
 struct map_entry {
@@ -21,26 +17,30 @@ struct map_entry {
     struct map_entry * next;
 };
 
-struct map_entry *map[ID_MAX+1] ;
-u_int id_from_name[ID_MAX+1] ;
-pthread_mutex_t map_lock[ID_MAX+1]; /* protections individuelles des cases */
+struct map {
+    u_short map_size  ; 
+    pthread_mutex_t size_lock ;
+    struct map_entry *name_from_id[ID_MAX+1] ;
+    u_int id_from_name[ID_MAX+1] ;
+    pthread_mutex_t map_lock[ID_MAX+1]; /* protections individuelles des cases */    
+};
 
 /* Initialise la map. */
-void init_map() ;
+struct map *init_map() ;
 
 /* Libère la map. */
-void destroy_map() ;
+void destroy_map(struct map *m) ;
 
-#define reinit_map() destroy_map() ; init_map() ;
+#define reinit_map(m) destroy_map(m) ; m=init_map() ;
 
 /* Retourne le nouveau nom du client id */
 /* S'il n'existe pas dans la map, l'ajoute. */
-u_short get_name(u_int id) ;
+u_short get_name(struct map *m, u_int id) ;
 
 /* Retourne l'ID du client */
-u_int get_id(u_short name);
+u_int get_id(struct map *m, u_short name);
 
 /* Retourne le nombre de clients stockés. */
-u_int get_map_size() ;
+u_int get_map_size(struct map *m) ;
 
 #endif

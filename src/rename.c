@@ -4,70 +4,73 @@
 
 #include "rename.h"
 
-void init_map() {
+struct map *init_map() {
     int i ;
+    struct map *m = malloc(sizeof(struct map)) ;
     for(i = 0 ; i <= ID_MAX ; i++) {
-        map[i] = NULL ;
-        assert(pthread_mutex_init(&map_lock[i], NULL)==0);
+        m->name_from_id[i] = NULL ;
+        assert(pthread_mutex_init(&m->map_lock[i], NULL)==0);
     }
-    assert(pthread_mutex_init(&size_lock, NULL)==0);
-    map_size = 0 ;
+    assert(pthread_mutex_init(&m->size_lock, NULL)==0);
+    m->map_size = 0 ;
+    return m ;
 }
 
-void destroy_map() {
+void destroy_map(struct map *m) {
     int i ;
     struct map_entry *p, *old ;
     for(i = 0 ; i <= ID_MAX ; i++) {
-        p = map[i] ;
+        p = m->name_from_id[i] ;
         while(p != NULL) {
            old = p ;
            p = p->next ;
            free(old) ; 
         }
-        assert(pthread_mutex_destroy(&map_lock[i])==0);        
+        assert(pthread_mutex_destroy(&m->map_lock[i])==0);        
     }
-    assert(pthread_mutex_destroy(&size_lock)==0);
+    assert(pthread_mutex_destroy(&m->size_lock)==0);
+    free(m);
 }
 
-u_short get_name(u_int id) {
+u_short get_name(struct map *m,u_int id) {
     struct map_entry *p, *new ;
     u_int i = id%(ID_MAX+1) ;
     
-    pthread_mutex_lock(&map_lock[i]) ;      
+    pthread_mutex_lock(&m->map_lock[i]) ;      
     
     /* Recherche de id à la case i */
-    p=map[i] ;
+    p=m->name_from_id[i] ;
     while(p != NULL && p->ID != id) {
         p=p->next ;
     }
     if(p != NULL) { /* Déjà référencé, on renvoie sa valeur. */
-        pthread_mutex_unlock(&map_lock[i]) ;
+        pthread_mutex_unlock(&m->map_lock[i]) ;
         return p->name ;    
     }
     else { /* Non référencé, on l'ajoute en tête */
-        pthread_mutex_lock(&size_lock) ;
-        assert(map_size != ID_MAX) ;
+        pthread_mutex_lock(&m->size_lock) ;
+        assert(m->map_size != ID_MAX) ;
         new = malloc(sizeof(struct map_entry)) ;
         new->ID = id ;
-        new->name = map_size++ ;   
-        new->next = map[i] ;
-        map[i] = new ;
-        id_from_name[new->name] = new->ID ;
-        pthread_mutex_unlock(&size_lock) ;
-        pthread_mutex_unlock(&map_lock[i]) ;
+        new->name = m->map_size++ ;   
+        new->next = m->name_from_id[i] ;
+        m->name_from_id[i] = new ;
+        m->id_from_name[new->name] = new->ID ;
+        pthread_mutex_unlock(&m->size_lock) ;
+        pthread_mutex_unlock(&m->map_lock[i]) ;
         return new->name ;
     }
 }
 
-u_int get_id(u_short name) {
-    assert(name < map_size) ; /* on ne met pas de mutex ici, pour ne pas allourdir le code */
-    return id_from_name[name] ;
+u_int get_id(struct map *m, u_short name) {
+    assert(name < m->map_size) ; /* on ne met pas de mutex ici, pour ne pas allourdir le code */
+    return m->id_from_name[name] ;
 }
 
-u_int get_map_size() {
+u_int get_map_size(struct map *m) {
     u_int s ;
-    pthread_mutex_lock(&size_lock) ;
-    s = map_size ;
-    pthread_mutex_unlock(&size_lock) ;
+    pthread_mutex_lock(&m->size_lock) ;
+    s = m->map_size ;
+    pthread_mutex_unlock(&m->size_lock) ;
     return s ; 
 }
