@@ -22,6 +22,7 @@ struct map_entry {
 };
 
 struct map_entry *map[ID_MAX+1] ;
+u_int id_from_name[ID_MAX+1] ;
 pthread_mutex_t map_lock[ID_MAX+1]; /* protections individuelles des cases */
 
 /* Initialise la map. */
@@ -34,7 +35,10 @@ void destroy_map() ;
 
 /* Retourne le nouveau nom du client id */
 /* S'il n'existe pas dans la map, l'ajoute. */
-u_int name(u_int id) ;
+u_short get_name(u_int id) ;
+
+/* Retourne l'ID du client */
+u_int get_id(u_short name);
 
 /* Retourne le nombre de clients stockés. */
 u_int get_map_size() ;

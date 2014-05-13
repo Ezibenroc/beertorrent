@@ -29,7 +29,7 @@ void destroy_map() {
     assert(pthread_mutex_destroy(&size_lock)==0);
 }
 
-u_int name(u_int id) {
+u_short get_name(u_int id) {
     struct map_entry *p, *new ;
     u_int i = id%(ID_MAX+1) ;
     
@@ -52,10 +52,16 @@ u_int name(u_int id) {
         new->name = map_size++ ;   
         new->next = map[i] ;
         map[i] = new ;
+        id_from_name[new->name] = new->ID ;
         pthread_mutex_unlock(&size_lock) ;
         pthread_mutex_unlock(&map_lock[i]) ;
         return new->name ;
     }
+}
+
+u_int get_id(u_short name) {
+    assert(name < map_size) ; /* on ne met pas de mutex ici, pour ne pas allourdir le code */
+    return id_from_name[name] ;
 }
 
 u_int get_map_size() {
