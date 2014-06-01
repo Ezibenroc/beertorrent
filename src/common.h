@@ -7,6 +7,7 @@
 #define min(x, y) (x < y ? x : y)
 
 u_int my_id ;
+u_short my_port ;
 
 /* Construction d'un handshake. */
 struct proto_client_handshake* construct_handshake(struct beerTorrent *torrent);
