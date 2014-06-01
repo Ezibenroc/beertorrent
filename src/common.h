@@ -9,6 +9,17 @@
 u_int my_id ;
 u_short my_port ;
 
+#define N_SOCK 1024
+#define N_CANCEL 8
+struct cancel_entry {
+    u_int msg[N_CANCEL][2] ; /* tableau circulaire représentant les message "cancel" reçus */
+    u_int ind ;
+    pthread_mutex_t lock ;
+} cancel[N_SOCK] ;    
+
+void init_cancel() ;
+
+
 /* Construction d'un handshake. */
 struct proto_client_handshake* construct_handshake(struct beerTorrent *torrent);
 

@@ -86,20 +86,24 @@ struct bitfield
 {
     u_char * array;
     u_int arraysize;
+    u_int totalpiece;
     u_int nbpiece;
 };
 
 struct beerTorrent
 {
-    u_int filelength;
-    u_int filehash;
-    char filename[MAXNAMELENGTH];
-    u_int piecelength;
-    struct in_addr trackerip;
-    FILE * fp;
-    pthread_mutex_t file_lock;
-    struct bitfield * bf;
-    bool download_ended;
+    u_int filelength;               /* longueur du fichier */
+    u_int filehash;                 /* hash du fichier */   
+    char filename[MAXNAMELENGTH];   /* nom du fichier */
+    u_int piecelength;              /* longueur des pièces du fichier */
+    struct in_addr trackerip;       /* adresse IP du tracker associé */
+    FILE * fp;                      /* fichier associé */
+    pthread_mutex_t file_lock;      /* mutex pour R/W sur le fichier */
+    struct bitfield * have;         /* champ de bits représentant les pièces possédées */
+    pthread_mutex_t have_lock;      /* mutex pour R/W sur ce champ */
+    struct bitfield * request;      /* champ de bits représentant les pièces pour lesquels on a émis une requête */
+    pthread_mutex_t request_lock;   /* mutex pour R/W sur ce champ */
+    bool download_ended;            /* téléchargement terminé ou non */
 };
 
 struct bitfield * createbitfield(u_int filelength, u_int piecelength);
@@ -113,6 +117,8 @@ void setbitinfield(struct bitfield * bf, u_int id);
 int isinbitfield(struct bitfield * bf, u_int id) __attribute__((pure));
 
 struct beerTorrent * addtorrent(char * filename);
+
+void deletetorrent(struct beerTorrent *t) ;
 
 struct proto_tracker_peerlistentry * gettrackerinfos(struct beerTorrent * bt, u_int myId, u_short myPort);
 

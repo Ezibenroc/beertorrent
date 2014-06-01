@@ -116,7 +116,8 @@ struct bitfield * createbitfield(u_int filelength, u_int piecelength)
     struct bitfield * bf = malloc(sizeof(struct bitfield));
     assert(bf);
 
-    bf->nbpiece = (filelength-1) / piecelength + 1;
+    bf->totalpiece = (filelength-1) / piecelength + 1;
+    bf->nbpiece = 0;
     bf->arraysize = (bf->nbpiece-1) / 8 + 1;
     bf->array = malloc(sizeof(u_char) * bf->arraysize);
     assert(bf->array);
@@ -133,17 +134,24 @@ void deletebitfield(struct bitfield * bf)
 
 void setbitfield(struct bitfield * dst, struct bitfield * src)
 {
+    u_int i = 0 ;
     memcpy(dst->array, src->array, dst->arraysize);
-}
-
-void setbitinfield(struct bitfield * bf, u_int id)
-{
-    bf->array[id/8] |= (u_char)(0x1 << (id%8));
+    dst->nbpiece = 0 ;
+    for(i = 0 ; i < src->totalpiece ; i++) {
+        dst->nbpiece += (u_int)isinbitfield(src,i) ;
+    }
+    assert(dst->nbpiece == src->nbpiece);
 }
 
 int isinbitfield(struct bitfield * bf, u_int id)
 {
     return !!(bf->array[id/8] & (0x1 << (id%8)));
+}
+
+void setbitinfield(struct bitfield * bf, u_int id)
+{
+    bf->nbpiece += (u_int)!isinbitfield(bf,id) ;
+    bf->array[id/8] |= (u_char)(0x1 << (id%8));
 }
 
 struct beerTorrent * addtorrent(char * filename)
@@ -165,6 +173,8 @@ struct beerTorrent * addtorrent(char * filename)
         return NULL;
     }
     pthread_mutex_init(&bt->file_lock, NULL);
+    pthread_mutex_init(&bt->have_lock, NULL);
+    pthread_mutex_init(&bt->request_lock, NULL);
 
     /* Format :
      * length (Taille du fichier en octet)
@@ -198,7 +208,8 @@ struct beerTorrent * addtorrent(char * filename)
 
     printf("Opening %s\n", bt->filename);
 
-    bt->bf = createbitfield(bt->filelength, bt->piecelength);
+    bt->have = createbitfield(bt->filelength, bt->piecelength);
+    bt->request = createbitfield(bt->filelength, bt->piecelength);
 
     if( access( bt->filename, F_OK ) != -1 )
     {
@@ -208,13 +219,14 @@ struct beerTorrent * addtorrent(char * filename)
         {
 
             perror("fopen file");
-            deletebitfield(bt->bf);
+            deletebitfield(bt->have);
+            deletebitfield(bt->request);
             free(bt);
             return NULL;
         }
 
         /* set full bitfield*/
-        memset(bt->bf->array, 255, bt->bf->arraysize);
+        memset(bt->have->array, 255, bt->have->arraysize);
 
         printf("%s already downloaded.\n", bt->filename);
         bt->download_ended = true;
@@ -227,7 +239,8 @@ struct beerTorrent * addtorrent(char * filename)
         {
 
             perror("fopen file");
-            deletebitfield(bt->bf);
+            deletebitfield(bt->have);
+            deletebitfield(bt->request);
             free(bt);
             return NULL;
         }
@@ -238,6 +251,17 @@ struct beerTorrent * addtorrent(char * filename)
     printf("%s added\n", filename);
 
     return bt;
+}
+
+void deletetorrent(struct beerTorrent *t) {
+    fclose(t->fp);
+    assert(pthread_mutex_destroy(&t->file_lock)==0);
+    deletebitfield(t->have);         
+    assert(pthread_mutex_destroy(&t->have_lock)==0);
+    deletebitfield(t->request);         
+    assert(pthread_mutex_destroy(&t->request_lock)==0);
+    
+    free(t) ;
 }
 
 int write_socket(int fd,const char *buf,int len)

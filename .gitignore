@@ -12,4 +12,5 @@
 obj/
 tracker
 peerclient
-troll.jpg
+*.jpg
+*.beertorrent

@@ -1,7 +1,17 @@
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "common.h"
+
+void init_cancel() {
+    int i ;
+    for(i = 0 ; i < N_SOCK ; i++) {
+        memset(cancel[i].msg,0,N_CANCEL*2*sizeof(u_int)) ;
+        cancel[i].ind = 0 ;
+        pthread_mutex_init(&(cancel[i].lock), NULL);
+    }
+}
 
 struct proto_client_handshake* construct_handshake(struct beerTorrent *torrent) {
     struct proto_client_handshake* hs ;
