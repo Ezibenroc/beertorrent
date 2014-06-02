@@ -10,7 +10,6 @@
 
 int main(int argc, char *argv[]) {
     int i,j ;
-    struct beerTorrent *tmp_torrent ;
     struct beerTorrent **torrent ;
     struct proto_tracker_peerlistentry *peerlist ;
     
@@ -30,10 +29,13 @@ int main(int argc, char *argv[]) {
         torrent[i-1] = addtorrent(argv[i]);
         printf("Bitfield size : %d\n",torrent[i-1]->have->totalpiece) ;
         assert(torrent[i-1]);   
-        deletetorrent(torrent[i-1]);
+
     }
-    while(1);
     peerlist = gettrackerinfos(torrent[0], my_id, my_port);
-    while(1);   
+    for(i = 1 ; i < argc ; i++) {
+        deletetorrent(torrent[i-1]) ; 
+    }
+    free(peerlist->pentry);
+    free(peerlist);
     return 0 ;
 }

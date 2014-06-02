@@ -17,7 +17,7 @@
 
 #define PORT 3955
 #define MAXFILES 10
-
+#define DEBUG_MALLOC 1
 u_int hash(u_char *str) __attribute__ ((pure));
 void fillTracker(const char* dir);
 void startTracker() __attribute__ ((noreturn));

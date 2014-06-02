@@ -118,7 +118,7 @@ struct bitfield * createbitfield(u_int filelength, u_int piecelength)
 
     bf->totalpiece = (filelength-1) / piecelength + 1;
     bf->nbpiece = 0;
-    bf->arraysize = (bf->nbpiece-1) / 8 + 1;
+    bf->arraysize = (bf->totalpiece-1) / 8 + 1;
     bf->array = malloc(sizeof(u_char) * bf->arraysize);
     assert(bf->array);
     memset(bf->array, 0, bf->arraysize);
@@ -157,12 +157,12 @@ void setbitinfield(struct bitfield * bf, u_int id)
 struct beerTorrent * addtorrent(char * filename)
 {
 
-    struct beerTorrent * bt = malloc(sizeof(struct beerTorrent));
-
     FILE *fp;
     char *line = NULL;
     size_t len = 0;
     size_t ln;
+    
+    struct beerTorrent * bt = malloc(sizeof(struct beerTorrent));
 
     assert(bt);
 

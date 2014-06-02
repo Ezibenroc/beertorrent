@@ -14,6 +14,9 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <pthread.h>
+#include <stdlib.h>
+#define malloc(x) malloc(x) ; fprintf(stderr,"\t\t\t\t\t\t\t\t\t\tMalloc : %lu\n",x) 
+
 
 #define PROTO_VERSION 2
 #define PORTTRACKER 3955
