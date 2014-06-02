@@ -31,7 +31,7 @@ u_int file2hash(int fd)
 char *get_filename_ext(char *filename)
 {
     char *dot = strrchr(filename, '.');
-    if(!dot || dot == filename) return "";
+    if(!dot || dot == filename) return NULL;
     return dot + 1;
 }
 

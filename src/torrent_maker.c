@@ -17,7 +17,7 @@ char *beertorrent_extension(char *s) {
     char tmp ;
     char *dot = get_filename_ext(s) ;
     size_t size = strlen(s) ;
-    if(dot[0] == '\0' || dot == s)
+    if(dot == NULL)
         dot = s+size ;
     else
         dot-- ;

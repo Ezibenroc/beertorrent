@@ -9,8 +9,8 @@
 
 
 int main(int argc, char *argv[]) {
-    int i,j ;
-    int nb_files = 0 ;
+    int i;
+    unsigned int nb_files = 0 ;
     struct beerTorrent **torrent ;
     struct proto_tracker_peerlistentry **peers ;
     
@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr,"SYNTAX: %s [filenames]\n",argv[0]) ;
         exit(EXIT_FAILURE) ;
     }
-    nb_files = argc-1 ;
+    nb_files = (unsigned int) argc-1 ;
     torrent = (struct beerTorrent**) malloc(sizeof(struct beerTorrent*)*nb_files) ;
     peers = (struct proto_tracker_peerlistentry**) malloc(sizeof(struct proto_tracker_peerlistentry*)*nb_files) ;
     for(i = 1 ; i < argc ; i++) {
