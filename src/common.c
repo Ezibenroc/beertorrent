@@ -4,6 +4,38 @@
 
 #include "common.h"
 
+u_int hash(u_char *str)
+{
+    u_int hash_ = 0;
+    int c;
+
+    while ((c = (int)(*str++)))
+        hash_ += (u_int)c;
+
+    return hash_;
+}
+
+u_int file2hash(int fd)
+{
+
+    int bytes;
+    u_char data[1024];
+    u_int h = 0;
+
+    while ((bytes = (int)read(fd, data, 1024)) != 0)
+        h += hash(data);
+
+    return h;
+}
+
+char *get_filename_ext(char *filename)
+{
+    char *dot = strrchr(filename, '.');
+    if(!dot || dot == filename) return "";
+    return dot + 1;
+}
+
+
 void init_cancel() {
     int i ;
     for(i = 0 ; i < N_SOCK ; i++) {

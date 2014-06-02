@@ -10,8 +10,9 @@
 
 int main(int argc, char *argv[]) {
     int i,j ;
+    int nb_files = 0 ;
     struct beerTorrent **torrent ;
-    struct proto_tracker_peerlistentry *peerlist ;
+    struct proto_tracker_peerlistentry **peers ;
     
     /* Génération de l'ID et du port */
     srand((u_int) time(NULL)) ;
@@ -24,18 +25,14 @@ int main(int argc, char *argv[]) {
         fprintf(stderr,"SYNTAX: %s [filenames]\n",argv[0]) ;
         exit(EXIT_FAILURE) ;
     }
-    torrent = (struct beerTorrent**) malloc(sizeof(struct beerTorrent*)*(argc-1)) ;
+    nb_files = argc-1 ;
+    torrent = (struct beerTorrent**) malloc(sizeof(struct beerTorrent*)*nb_files) ;
+    peers = (struct proto_tracker_peerlistentry**) malloc(sizeof(struct proto_tracker_peerlistentry*)*nb_files) ;
     for(i = 1 ; i < argc ; i++) {
         torrent[i-1] = addtorrent(argv[i]);
-        printf("Bitfield size : %d\n",torrent[i-1]->have->totalpiece) ;
         assert(torrent[i-1]);   
-
+        peers[i-1] = gettrackerinfos(torrent[i-1], my_id, my_port);
+        assert(peers[i-1]) ;
     }
-    peerlist = gettrackerinfos(torrent[0], my_id, my_port);
-    for(i = 1 ; i < argc ; i++) {
-        deletetorrent(torrent[i-1]) ; 
-    }
-    free(peerlist->pentry);
-    free(peerlist);
     return 0 ;
 }

@@ -9,6 +9,11 @@
 u_int my_id ;
 u_short my_port ;
 
+u_int hash(u_char *str) ;
+u_int file2hash(int fd) ;
+char *get_filename_ext(char *filename) ;
+
+
 #define N_SOCK 1024
 #define N_CANCEL 8
 struct cancel_entry {
