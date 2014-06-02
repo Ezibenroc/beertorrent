@@ -11,7 +11,7 @@
 struct map *m;
 
 void *thread1(void *ptr)  {
-    u_short a,b,c,d,e ;
+    u_int a,b,c,d,e ;
     a=get_name(m,23) ;
     b=get_name(m,39104) ;
     c=get_name(m,2) ;
@@ -49,7 +49,7 @@ void *thread1(void *ptr)  {
 }
 
 void *thread2(void *ptr)  {
-    u_short a,b,c,d,e ;
+    u_int a,b,c,d,e ;
     a=get_name(m,21) ;
     pthread_yield() ;
     b=get_name(m,39101) ;
@@ -87,7 +87,7 @@ void *thread2(void *ptr)  {
 }
 
 void *thread3(void *ptr) {
-    u_short a,b,c,d,e ;
+    u_int a,b,c,d,e ;
     a=get_name(m,28) ;
     b=get_name(m,39108) ;
     pthread_yield() ;
@@ -127,7 +127,7 @@ void *thread3(void *ptr) {
 int main() {
     int i ;
     u_int tmp2 ;
-    u_short j,tmp1 ;
+    u_int j,tmp1 ;
     pthread_t t1,t2,t3 ;
     srand((u_int)time(NULL)) ;
     

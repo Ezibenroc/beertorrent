@@ -7,18 +7,18 @@
 #include <pthread.h>
 #include <sys/types.h>
 
-#define ID_MAX 254
+#define ID_MAX 1024
 
 
 
 struct map_entry {
     u_int ID ;                  /* ID du client */
-    u_short name ;          /* nouvel entier */
+    u_int name ;          /* nouvel entier */
     struct map_entry * next;
 };
 
 struct map {
-    u_short map_size  ; 
+    u_int map_size  ; 
     pthread_mutex_t size_lock ;
     struct map_entry *name_from_id[ID_MAX+1] ;
     u_int id_from_name[ID_MAX+1] ;
@@ -35,10 +35,10 @@ void destroy_map(struct map *m) ;
 
 /* Retourne le nouveau nom du client id */
 /* S'il n'existe pas dans la map, l'ajoute. */
-u_short get_name(struct map *m, u_int id) ;
+u_int get_name(struct map *m, u_int id) ;
 
 /* Retourne l'ID du client */
-u_int get_id(struct map *m, u_short name);
+u_int get_id(struct map *m, u_int name);
 
 /* Retourne le nombre de clients stockés. */
 u_int get_map_size(struct map *m) ;

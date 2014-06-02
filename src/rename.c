@@ -32,7 +32,7 @@ void destroy_map(struct map *m) {
     free(m);
 }
 
-u_short get_name(struct map *m,u_int id) {
+u_int get_name(struct map *m,u_int id) {
     struct map_entry *p, *new ;
     u_int i = id%(ID_MAX+1) ;
     
@@ -62,7 +62,7 @@ u_short get_name(struct map *m,u_int id) {
     }
 }
 
-u_int get_id(struct map *m, u_short name) {
+u_int get_id(struct map *m, u_int name) {
     assert(name < m->map_size) ; /* on ne met pas de mutex ici, pour ne pas allourdir le code */
     return m->id_from_name[name] ;
 }
