@@ -90,7 +90,8 @@ struct proto_tracker_peerlistentry * gettrackerinfos(struct beerTorrent * bt, u_
     assert(peerList);
     peerList->nbPeers = ans.nbPeers;
 
-    peerList->pentry = malloc(sizeof(struct proto_tracker_peerentry) * peerList->nbPeers);
+    /* De nouveaux pairs peuvent être ajoutés après l'obtention des pairs, on alloue donc pour le nombre max. */
+    peerList->pentry = malloc(sizeof(struct proto_tracker_peerentry) * MAX_PEERS);
     assert(peerList->pentry);
 
     /* Get n peers */

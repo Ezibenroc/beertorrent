@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #define malloc(x) malloc(x) ; fprintf(stderr,"\t\t\t\t\t\t\t\t\t\tMalloc : %lu\n",x) 
 
+#define MAX_PEERS 256
 
 #define PROTO_VERSION 2
 #define PORTTRACKER 3955
