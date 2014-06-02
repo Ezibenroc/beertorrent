@@ -27,7 +27,7 @@ obj/rename.o: src/rename.c src/rename.h
 tracker: obj/tracker.o 
 	gcc -o $@ $^ $(CFLAGS)
 	
-client: obj/client.o obj/peerfunc.o obj/common.o
+client: obj/client.o obj/peerfunc.o obj/common.o obj/rename.o
 	gcc -o $@ $^ $(CFLAGS)
 	
 clean:

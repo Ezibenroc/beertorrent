@@ -15,7 +15,7 @@
 #include <netdb.h>
 #include <pthread.h>
 #include <stdlib.h>
-#define malloc(x) malloc(x) ; fprintf(stderr,"\t\t\t\t\t\t\t\t\t\tMalloc : %lu\n",x) 
+/*#define malloc(x) malloc(x) ; fprintf(stderr,"\t\t\t\t\t\t\t\t\t\tMalloc : %lu\n",x) */
 
 #define MAX_PEERS 256
 
