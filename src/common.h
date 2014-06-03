@@ -32,7 +32,7 @@ struct proto_client_handshake* construct_handshake(struct beerTorrent *torrent);
 void send_handshake(struct proto_peer *peer, const struct proto_client_handshake *hs);
 
 /*
-void initialize_peer_connection(int socket_fd, struct torrent_state *torrent_state);
+void init_peer_connection(int socket_fd, struct torrent_state *torrent_state);
 void send_bitfield(struct torrent_state *torrent_state, struct peer *peer);*/
 
 #endif

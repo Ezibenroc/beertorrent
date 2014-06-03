@@ -14,7 +14,7 @@
 
 
 /* Tracker functions */
-struct proto_tracker_peerlistentry * gettrackerinfos(struct beerTorrent * bt, u_int myId, u_short myPort)
+struct proto_tracker_peerlist * gettrackerinfos(struct beerTorrent * bt, u_int myId, u_short myPort)
 {
     struct proto_tracker_trackeranswer ans;
     int trackersock;
@@ -23,7 +23,7 @@ struct proto_tracker_peerlistentry * gettrackerinfos(struct beerTorrent * bt, u_
     struct in_addr **addr_list;
     int i;
     struct proto_tracker_clientrequest req;
-    struct proto_tracker_peerlistentry * peerList;
+    struct proto_tracker_peerlist * peerList;
     u_char j;
 
 
@@ -32,15 +32,13 @@ struct proto_tracker_peerlistentry * gettrackerinfos(struct beerTorrent * bt, u_
     /*~ inet_pton(AF_INET, "127.0.0.1", &ipv4addr);*/
     sp = gethostbyaddr(&(bt->trackerip), sizeof(bt->trackerip), AF_INET);
 
-    if (sp == NULL)
-    {
+    if (sp == NULL) {
         fprintf (stderr, "gethostbyaddr not found\n");
         exit (1);
     }
 
     trackersock = socket (PF_INET, SOCK_STREAM, 0);
-    if (trackersock == -1)
-    {
+    if (trackersock == -1) {
         perror ("socket failed");
         exit (1);
     }
@@ -54,15 +52,13 @@ struct proto_tracker_peerlistentry * gettrackerinfos(struct beerTorrent * bt, u_
     printf("Official name is: %s\n", sp->h_name);
     printf("    IP addresses: ");
     addr_list = (struct in_addr **)sp->h_addr_list;
-    for(i = 0; addr_list[i] != NULL; i++)
-    {
+    for(i = 0; addr_list[i] != NULL; i++) {
         printf("%s ", inet_ntoa(*addr_list[i]));
     }
 
     printf("\n");
 
-    if (connect (trackersock, (struct sockaddr *)&sins, sizeof(sins)) == -1)
-    {
+    if (connect (trackersock, (struct sockaddr *)&sins, sizeof(sins)) == -1) {
         perror ("connect failed");
         exit (1);
     }
@@ -78,29 +74,28 @@ struct proto_tracker_peerlistentry * gettrackerinfos(struct beerTorrent * bt, u_
     /* Get answer from tracker */
     read(trackersock, &ans.status, sizeof(ans.status));
     read(trackersock, &ans.nbPeers, sizeof(ans.nbPeers));
-    if(ans.status == 1)
-    {
+    if(ans.status == 1) {
         printf("Error when retrieving peers info\n");
         return NULL;
     }
 
     printf("NbPeers: %hu\n", ans.nbPeers);
 
-    peerList = malloc(sizeof(struct proto_tracker_peerlistentry));
+    peerList = malloc(sizeof(struct proto_tracker_peerlist));
     assert(peerList);
     peerList->nbPeers = ans.nbPeers;
 
     /* De nouveaux pairs peuvent être ajoutés après l'obtention des pairs, on alloue donc pour le nombre max. */
-    peerList->pentry = malloc(sizeof(struct proto_tracker_peerentry) * MAX_PEERS);
+    peerList->pentry = malloc(sizeof(struct proto_peer) * MAX_PEERS);
     assert(peerList->pentry);
 
     /* Get n peers */
-    for(j=0; j<peerList->nbPeers; j++)
-    {
+    for(j=0; j<peerList->nbPeers; j++) {
 
         read(trackersock, &(peerList->pentry[j].peerId), sizeof(peerList->pentry[j].peerId));
         read(trackersock, &(peerList->pentry[j].ipaddr), sizeof(peerList->pentry[j].ipaddr));
         read(trackersock, &(peerList->pentry[j].port), sizeof(peerList->pentry[j].port));
+        peerList->pentry[j].sockfd = -1 ;
 
         printf("* peerId: %u\n", (peerList->pentry[j]).peerId);
         printf("* IPaddr: %s\n", inet_ntoa((peerList->pentry[j]).ipaddr));
@@ -113,8 +108,7 @@ struct proto_tracker_peerlistentry * gettrackerinfos(struct beerTorrent * bt, u_
 
 /* Beertorrent functions */
 
-struct bitfield * createbitfield(u_int filelength, u_int piecelength)
-{
+struct bitfield * createbitfield(u_int filelength, u_int piecelength) {
     struct bitfield * bf = malloc(sizeof(struct bitfield));
     assert(bf);
 
@@ -128,14 +122,12 @@ struct bitfield * createbitfield(u_int filelength, u_int piecelength)
     return bf;
 }
 
-void deletebitfield(struct bitfield * bf)
-{
+void deletebitfield(struct bitfield * bf) {
     free(bf->array);
     free(bf);
 }
 
-void setbitfield(struct bitfield * dst, struct bitfield * src)
-{
+void setbitfield(struct bitfield * dst, struct bitfield * src) {
     u_int i = 0 ;
     memcpy(dst->array, src->array, dst->arraysize);
     dst->nbpiece = 0 ;
@@ -145,19 +137,16 @@ void setbitfield(struct bitfield * dst, struct bitfield * src)
     assert(dst->nbpiece == src->nbpiece);
 }
 
-int isinbitfield(struct bitfield * bf, u_int id)
-{
+int isinbitfield(struct bitfield * bf, u_int id) {
     return !!(bf->array[id/8] & (0x1 << (id%8)));
 }
 
-void setbitinfield(struct bitfield * bf, u_int id)
-{
+void setbitinfield(struct bitfield * bf, u_int id) {
     bf->nbpiece += (u_int)!isinbitfield(bf,id) ;
     bf->array[id/8] |= (u_char)(0x1 << (id%8));
 }
 
-struct beerTorrent * addtorrent(char * filename)
-{
+struct beerTorrent * addtorrent(char * filename) {
 
     FILE *fp;
     char *line = NULL;
@@ -169,8 +158,7 @@ struct beerTorrent * addtorrent(char * filename)
     assert(bt);
 
     fp = fopen(filename, "r");
-    if (fp == NULL)
-    {
+    if (fp == NULL) {
         printf("Cannot open %s\n", filename);
         return NULL;
     }
@@ -213,12 +201,10 @@ struct beerTorrent * addtorrent(char * filename)
     bt->have = createbitfield(bt->filelength, bt->piecelength);
     bt->request = createbitfield(bt->filelength, bt->piecelength);
 
-    if( access( bt->filename, F_OK ) != -1 )
-    {
+    if( access( bt->filename, F_OK ) != -1 ) {
         /*file exists - supposely complete*/
 
-        if(!(bt->fp = fopen(bt->filename, "rb")))
-        {
+        if(!(bt->fp = fopen(bt->filename, "rb"))) {
 
             perror("fopen file");
             deletebitfield(bt->have);
@@ -237,8 +223,7 @@ struct beerTorrent * addtorrent(char * filename)
     else
     {
         /* file doesn't exist*/
-        if(!(bt->fp = fopen(bt->filename, "w+b")))
-        {
+        if(!(bt->fp = fopen(bt->filename, "w+b"))) {
 
             perror("fopen file");
             deletebitfield(bt->have);
@@ -266,11 +251,9 @@ void deletetorrent(struct beerTorrent *t) {
     free(t) ;
 }
 
-int write_socket(int fd,const char *buf,int len)
-{
+int write_socket(int fd,const char *buf,int len) {
     int currentsize=0;
-    while(currentsize<len)
-    {
+    while(currentsize<len) {
         int count=(int)write(fd,buf+currentsize,(size_t)(len-currentsize));
         if(count<0) return -1;
         currentsize+=count;
@@ -278,15 +261,12 @@ int write_socket(int fd,const char *buf,int len)
     return currentsize;
 }
 
-int readblock(int fd, char* buffer, int len)
-{
+int readblock(int fd, char* buffer, int len) {
     int ret  = 0;
     int count = 0;
-    while (count < len)
-    {
+    while (count < len) {
         ret = (int)read(fd, buffer + count, (size_t)(len - count));
-        if (ret <= 0)
-        {
+        if (ret <= 0) {
             return (-1);
         }
         count += ret;

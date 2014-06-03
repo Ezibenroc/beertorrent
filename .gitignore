@@ -11,6 +11,8 @@
 *.o
 obj/
 tracker
-peerclient
+client
+test_name
+torrent_maker
 *.jpg
 *.beertorrent

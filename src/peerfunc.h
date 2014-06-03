@@ -23,79 +23,67 @@
 #define PORTTRACKER 3955
 #define MAXNAMELENGTH 128
 
-/* Contient toutes les informations liées à un torrent. */
-struct torrent_state {
-    struct beerTorrent *torrent;
-    struct peerlist *peerlist;
-    u_int *requests;
-};
-
 /* Tracker communication structures */
-struct proto_tracker_clientrequest
-{
+struct proto_tracker_clientrequest {
     u_int fileHash;
     u_int peerId;
     u_short port;
 };
 
-struct proto_tracker_trackeranswer
-{
+struct proto_tracker_trackeranswer {
     u_char status;
     u_char nbPeers;
 };
 
-struct proto_tracker_peerentry
-{
+struct proto_tracker_peerentry {
     u_int peerId;
     struct in_addr ipaddr;
     u_short port;
 };
 
-struct proto_tracker_peerlistentry
-{
+struct proto_tracker_peerlistentry {
     u_char nbPeers;
     struct proto_tracker_peerentry * pentry;
 };
 
-/* Inter-client communication structures */
-struct proto_client_handshake
-{
+struct proto_client_handshake {
     u_char version;
     u_int filehash;
     u_int peerId;
 };
 
 struct proto_peer {
-    struct proto_tracker_peerentry *peer ;
+    u_int peerId;
+    struct in_addr ipaddr;
+    u_short port;
     int sockfd ; /* socket attachée à ce client */
 };
 
-#define HANDSHAKE_SIZE 9 /* Ne pas faire confiance à sizeof pour les structures */
+struct proto_tracker_peerlist {
+    u_char nbPeers;
+    struct proto_peer * pentry;
+};
 
-struct proto_client_messageheader
-{
+struct proto_client_messageheader {
     u_int length;
     u_char id;
 };
 
-struct proto_client_requestpayload
-{
+struct proto_client_requestpayload {
     u_int index;
     u_int offset;
     u_int length;
 };
 
 /* Beertorrent struct */
-struct bitfield
-{
+struct bitfield {
     u_char * array;
     u_int arraysize;
     u_int totalpiece;
     u_int nbpiece;
 };
 
-struct beerTorrent
-{
+struct beerTorrent {
     u_int filelength;               /* longueur du fichier */
     u_int filehash;                 /* hash du fichier */   
     char filename[MAXNAMELENGTH];   /* nom du fichier */
@@ -108,6 +96,12 @@ struct beerTorrent
     struct bitfield * request;      /* champ de bits représentant les pièces pour lesquels on a émis une requête */
     pthread_mutex_t request_lock;   /* mutex pour R/W sur ce champ */
     bool download_ended;            /* téléchargement terminé ou non */
+};
+
+/* Contient toutes les informations liées à un torrent. */
+struct torrent_info {
+    struct beerTorrent *torrent;
+    struct proto_tracker_peerlist *peerlist;
 };
 
 struct bitfield * createbitfield(u_int filelength, u_int piecelength);
@@ -124,7 +118,7 @@ struct beerTorrent * addtorrent(char * filename);
 
 void deletetorrent(struct beerTorrent *t) ;
 
-struct proto_tracker_peerlistentry * gettrackerinfos(struct beerTorrent * bt, u_int myId, u_short myPort);
+struct proto_tracker_peerlist * gettrackerinfos(struct beerTorrent * bt, u_int myId, u_short myPort);
 
 int write_socket(int fd,const char *buf,int len);
 #define assert_write_socket(fd, var, len) assert(-1 != write_socket(fd, (const char*) var, len))

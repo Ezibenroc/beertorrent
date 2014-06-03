@@ -11,11 +11,9 @@
 
 int main(int argc, char *argv[]) {
     unsigned int nb_files = 0, tmp,i,id_arg ;
-    /* Tableau des fichiers du client */
-    struct beerTorrent **torrent ;
-    /* Tableau des listes de pairs */
-    /* peers[i] est la liste de pairs de torrent[i] */
-    struct proto_tracker_peerlistentry **peers ;
+    
+    /* Tableau des torrent_list (et infos associées) */
+    struct torrent_info **torrent_list ;
     
     /* Renommage des fichiers et des sockets, pour pouvoir s'en servir d'indices dans des tableaux */
     struct map *file_map = init_map(), *socket_map = init_map() ;
@@ -33,21 +31,24 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE) ;
     }
     nb_files = (unsigned int) argc-1 ;
-    torrent = (struct beerTorrent**) malloc(sizeof(struct beerTorrent*)*nb_files) ;
-    peers = (struct proto_tracker_peerlistentry**) malloc(sizeof(struct proto_tracker_peerlistentry*)*nb_files) ;
+    torrent_list = (struct torrent_info**) malloc(sizeof(struct torrent_info*)*nb_files) ;
+    assert(torrent_list) ;
     i=0; id_arg=1 ;
     while(id_arg <= nb_files) {
-        torrent[i] = addtorrent(argv[id_arg]);
-        assert(torrent[i]);   
-        tmp = get_name(file_map,torrent[i]->filehash) ;
+        torrent_list[i] = (struct torrent_info *) malloc(sizeof(struct torrent_info)) ;
+        assert(torrent_list[i]) ;
+        torrent_list[i]->torrent = addtorrent(argv[id_arg]);
+        assert(torrent_list[i]->torrent);   
+        tmp = get_name(file_map,torrent_list[i]->torrent->filehash) ;
         if(tmp==i) { /* fichier pas encore référencé... sinon on a un doublon */
-            peers[i] = gettrackerinfos(torrent[i], my_id, my_port);
-            assert(peers[i]) ;
+            torrent_list[i]->peerlist = gettrackerinfos(torrent_list[i]->torrent, my_id, my_port);
+            assert(torrent_list[i]->peerlist) ;
             i++ ;
         }
         else {
-            fprintf(stderr,"File %s already referenced. Removed from list.\n",torrent[i]->filename);
-            deletetorrent(torrent[i]) ;
+            fprintf(stderr,"File %s already referenced. Removed from list.\n",torrent_list[i]->torrent->filename);
+            deletetorrent(torrent_list[i]->torrent) ;
+            free(torrent_list[i]) ;
         }
         assert(tmp == i-1);
         id_arg++ ;
