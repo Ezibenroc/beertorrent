@@ -9,6 +9,8 @@
 u_int my_id ;
 u_short my_port ;
 
+void print_id() ;
+
 u_int hash(u_char *str) ;
 u_int file2hash(int fd) ;
 char *get_filename_ext(char *filename) ;
@@ -29,10 +31,11 @@ void init_cancel() ;
 struct proto_client_handshake* construct_handshake(struct beerTorrent *torrent);
 
 /* Envoie d'un handshake. */
-void send_handshake(struct proto_peer *peer, const struct proto_client_handshake *hs);
+void send_handshake(const struct proto_peer *peer, const struct proto_client_handshake *hs);
 
+/* Pour tous les pairs du torrent donné, créé une socket et réalise le handshake. */
+void init_peers_connections(struct torrent_info *ti);
 /*
-void init_peer_connection(int socket_fd, struct torrent_state *torrent_state);
 void send_bitfield(struct torrent_state *torrent_state, struct peer *peer);*/
 
 #endif

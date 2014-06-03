@@ -24,6 +24,8 @@ int main(int argc, char *argv[]) {
     my_id = (u_int) rand() ;
     my_port = (u_short) (rand()%(65536-1024)+1024)  ;
     
+    print_id();    
+    
     init_cancel() ;
     
     if(argc < 2) {
@@ -55,5 +57,9 @@ int main(int argc, char *argv[]) {
     }
     nb_files -= id_arg-i-1 ;
     printf("Total files referenced : %d\n",nb_files);
+    
+    /* Initialisation des connections (création des sockets, handshake) */
+    for(i=0 ; i < nb_files ; i++)
+        init_peers_connections(torrent_list[i]) ;
     return 0 ;
 }

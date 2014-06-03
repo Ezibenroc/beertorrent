@@ -11,7 +11,9 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/stat.h>
+#include <errno.h>
 
+#include "common.h"
 
 /* Tracker functions */
 struct proto_tracker_peerlist * gettrackerinfos(struct beerTorrent * bt, u_int myId, u_short myPort)
@@ -24,7 +26,7 @@ struct proto_tracker_peerlist * gettrackerinfos(struct beerTorrent * bt, u_int m
     int i;
     struct proto_tracker_clientrequest req;
     struct proto_tracker_peerlist * peerList;
-    u_char j;
+    u_char j, peer_ind;
 
 
     printf("Getting tracker infos for %s\n", bt->filename);
@@ -33,14 +35,14 @@ struct proto_tracker_peerlist * gettrackerinfos(struct beerTorrent * bt, u_int m
     sp = gethostbyaddr(&(bt->trackerip), sizeof(bt->trackerip), AF_INET);
 
     if (sp == NULL) {
-        fprintf (stderr, "gethostbyaddr not found\n");
-        exit (1);
+        perror("gethostbyaddr");
+        exit(errno);
     }
 
     trackersock = socket (PF_INET, SOCK_STREAM, 0);
     if (trackersock == -1) {
-        perror ("socket failed");
-        exit (1);
+        perror ("socket");
+        exit(errno);
     }
 
     sins.sin_family = AF_INET;
@@ -79,8 +81,6 @@ struct proto_tracker_peerlist * gettrackerinfos(struct beerTorrent * bt, u_int m
         return NULL;
     }
 
-    printf("NbPeers: %hu\n", ans.nbPeers);
-
     peerList = malloc(sizeof(struct proto_tracker_peerlist));
     assert(peerList);
     peerList->nbPeers = ans.nbPeers;
@@ -90,18 +90,28 @@ struct proto_tracker_peerlist * gettrackerinfos(struct beerTorrent * bt, u_int m
     assert(peerList->pentry);
 
     /* Get n peers */
+    peer_ind = 0 ;
     for(j=0; j<peerList->nbPeers; j++) {
 
-        read(trackersock, &(peerList->pentry[j].peerId), sizeof(peerList->pentry[j].peerId));
-        read(trackersock, &(peerList->pentry[j].ipaddr), sizeof(peerList->pentry[j].ipaddr));
-        read(trackersock, &(peerList->pentry[j].port), sizeof(peerList->pentry[j].port));
-        peerList->pentry[j].sockfd = -1 ;
-
+        read(trackersock, &(peerList->pentry[peer_ind].peerId), sizeof(peerList->pentry[j].peerId));
+        read(trackersock, &(peerList->pentry[peer_ind].ipaddr), sizeof(peerList->pentry[j].ipaddr));
+        read(trackersock, &(peerList->pentry[peer_ind].port), sizeof(peerList->pentry[j].port));
+        peerList->pentry[peer_ind].sockfd = -1 ;
+        
+        if(peerList->pentry[peer_ind].peerId == my_id) 
+            continue ;
+        
+        peer_ind ++ ;  
+    }
+    
+    peerList->nbPeers = peer_ind ;
+    printf("NbPeers: %hu\n", peerList->nbPeers);  
+    for(j=0; j<peerList->nbPeers; j++) {
         printf("* peerId: %u\n", (peerList->pentry[j]).peerId);
         printf("* IPaddr: %s\n", inet_ntoa((peerList->pentry[j]).ipaddr));
         printf("* port: %hu\n", (peerList->pentry[j]).port);
     }
-
+    
     close(trackersock);
     return peerList;
 }
