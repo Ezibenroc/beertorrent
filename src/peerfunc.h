@@ -62,6 +62,7 @@ struct proto_peer {
 struct proto_tracker_peerlist {
     u_char nbPeers;
     struct proto_peer * pentry;
+    pthread_mutex_t lock;      
 };
 
 struct proto_client_messageheader {

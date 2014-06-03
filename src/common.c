@@ -138,7 +138,8 @@ int init_peer_connection(struct proto_peer *peer, const struct proto_client_hand
     
     peer->sockfd = fd ;
     send_handshake(peer,hs) ;
-    receive_handshake(peer,hs) ;    
+    receive_handshake(peer,hs) ; 
+    free(hs);   
     
 }
 
