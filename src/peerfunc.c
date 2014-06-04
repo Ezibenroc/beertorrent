@@ -242,6 +242,7 @@ struct beerTorrent * addtorrent(char * filename) {
 
         printf("%s already downloaded.\n", bt->filename);
         bt->download_ended = true;
+        bt->last_downloaded_piece = (int)bt->have->nbpiece-1 ;
 
     }
     else
@@ -257,6 +258,7 @@ struct beerTorrent * addtorrent(char * filename) {
         }
         printf("%s has to be downloaded.\n", bt->filename);
         bt->download_ended = false;
+        bt->last_downloaded_piece = -1 ;
     }
 
     printf("%s added\n", filename);

@@ -8,8 +8,6 @@
 #include "common.h"
 #include "rename.h"
 
-/* Tableau des torrent_list (et infos associées) */
-struct torrent_info **torrent_list ;
 
 /* Fonction appelée lorsque l'on reçoit un handshake d'un nouveau pair. */
 void handleNewConnection (int fd, struct sockaddr_in from, int len) {
@@ -87,11 +85,13 @@ void start_client() {
 
 
 int main(int argc, char *argv[]) {
-    unsigned int nb_files = 0, tmp,i,id_arg ;
+    unsigned int tmp,i,id_arg ;
    
     
     file_map = init_map() ; 
     socket_map = init_map() ;
+    
+    nb_files = 0 ;
     
     /* Génération de l'ID et du port */
     srand((u_int) time(NULL)) ;

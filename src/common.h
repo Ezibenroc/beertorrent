@@ -23,6 +23,14 @@ struct map *file_map, *socket_map ;
 /* socket_to_file[i] est le hash du fichier associé à la socket renommé en i */
 u_int socket_to_file[N_SOCK] ;
 
+struct bitfield *peer_bitfield[N_SOCK] ;
+
+/* Tableau des torrent_list (et infos associées) */
+struct torrent_info **torrent_list ;
+
+/* Nombre de torrents */
+unsigned int nb_files ;
+
 /* Fonction d'affichage (ID et port). */
 void print_id() ;
 
@@ -55,6 +63,7 @@ void send_handshake(const struct proto_peer *peer, const struct proto_client_han
 /* Initialise la connection de tous les pairs (création des sockets, réalisation des handshakes). */
 /* Remplis la table de sockets, et le tableau faisant la correspondance entre sockets et fichiers. */
 void init_peers_connections(struct torrent_info *ti);
+
 /*
 void send_bitfield(struct torrent_state *torrent_state, struct peer *peer);*/
 

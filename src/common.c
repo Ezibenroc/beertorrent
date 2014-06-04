@@ -181,6 +181,7 @@ void init_peers_connections(struct torrent_info *ti) {
         else {
             id_sock = get_name(socket_map,(u_int)ti->peerlist->pentry[i].sockfd) ;
             socket_to_file[id_sock] = ti->torrent->filehash ;
+            peer_bitfield[id_sock] = createbitfield(ti->torrent->filelength,ti->torrent->piecelength) ; /* bitfield initialisé à 00...0 */
             i++ ;
         }
     }
