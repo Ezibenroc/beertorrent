@@ -9,19 +9,19 @@ all: $(EXEC)
 setup:
 	mkdir -p obj
 
-obj/tracker.o: src/tracker.c src/tracker.h
+obj/tracker.o: src/tracker.c src/tracker.h setup
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-obj/peerfunc.o: src/peerfunc.c src/peerfunc.h
+obj/peerfunc.o: src/peerfunc.c src/peerfunc.h setup
 	$(CC) -c -o $@ $< $(CFLAGS)
 	
-obj/client.o: src/client.c
+obj/client.o: src/client.c src/common.c src/common.h src/peerfunc.c src/peerfunc.h setup
 	$(CC) -c -o $@ $< $(CFLAGS)
 	
-obj/common.o: src/common.c src/common.h
+obj/common.o: src/common.c src/common.h src/peerfunc.c src/peerfunc.h setup
 	$(CC) -c -o $@ $< $(CFLAGS)
 	
-obj/rename.o: src/rename.c src/rename.h
+obj/rename.o: src/rename.c src/rename.h setup
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 tracker: obj/tracker.o 
@@ -44,7 +44,7 @@ test_name: obj/test_name.o obj/rename.o
 obj/torrent_maker.o: src/torrent_maker.c
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-torrent_maker: obj/torrent_maker.o obj/common.o
+torrent_maker: obj/torrent_maker.o obj/common.o obj/peerfunc.o
 	gcc -o $@ $^ $(CFLAGS)
 	
 	

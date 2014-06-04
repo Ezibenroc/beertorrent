@@ -65,6 +65,10 @@ struct proto_peer {
     int sockfd ; /* socket attachée à ce client */
 };
 
+/* Supprime le pair. */
+void delete_peer(struct proto_peer *p) ;
+
+
 /* Tableau de pairs (protégé par mutex). */
 struct proto_tracker_peerlist {
     u_char nbPeers;

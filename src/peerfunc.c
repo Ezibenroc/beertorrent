@@ -22,8 +22,10 @@ struct proto_tracker_peerlist * gettrackerinfos(struct beerTorrent * bt, u_int m
     int trackersock;
     struct hostent *sp;
     struct sockaddr_in sins;
+    /*
     struct in_addr **addr_list;
     int i;
+    */
     struct proto_tracker_clientrequest req;
     struct proto_tracker_peerlist * peerList;
     u_char j, peer_ind;
@@ -115,6 +117,12 @@ struct proto_tracker_peerlist * gettrackerinfos(struct beerTorrent * bt, u_int m
     
     close(trackersock);
     return peerList;
+}
+
+/* Supprime le pair. */
+void delete_peer(struct proto_peer *p) {
+    close(p->sockfd) ;
+    free(p);
 }
 
 

@@ -4,6 +4,7 @@
 #include <errno.h>
 
 #include "common.h"
+#include "peerfunc.h"
 
 #define size_id 22
 /* Fonction d'affichage (ID et port). */
@@ -119,6 +120,7 @@ void receive_handshake(const struct proto_peer *peer, const struct proto_client_
 
 /* Initialise la connection pour un pair, avec le handshake donné. */
 /* Créé une socket et réalise le handshake. */
+/* Renvoie 1 en cas de succés, 0 en cas d'échec. */
 int init_peer_connection(struct proto_peer *peer, const struct proto_client_handshake *hs) {
     int fd ;
     struct hostent *sp;
@@ -141,15 +143,18 @@ int init_peer_connection(struct proto_peer *peer, const struct proto_client_hand
     sins.sin_port = htons(peer->port);
     
     if (connect (fd, (struct sockaddr *)&sins, sizeof(sins)) == -1) {
-        perror ("connect");
+        switch(errno) {
+            case ECONNREFUSED : 
+                printf("Connection to peer %d failed. Peer removed from list.\n",peer->peerId); return 0 ;
+            break ;
+            default : perror ("connect");
+        }
         exit (errno);
     }
-    
     peer->sockfd = fd ;
     send_handshake(peer,hs) ;
     receive_handshake(peer,hs) ; 
-    free(hs);   
-    
+    return 1 ;
 }
 
 /* Initialise la connection de tous les pairs (création des sockets, réalisation des handshakes). */
@@ -157,9 +162,18 @@ void init_peers_connections(struct torrent_info *ti) {
     /* Construction du handshake, identique pour tous. */
     struct proto_client_handshake* hs = construct_handshake(ti->torrent) ;
     
-    int i ;
+    int i,j ;
     /* Parcours des pairs */
-    for(i = 0 ; i < ti->peerlist->nbPeers ; i++) {
-        init_peer_connection(&ti->peerlist->pentry[i],hs) ;
+    i=0 ;
+    while(i < ti->peerlist->nbPeers) {
+        if(!init_peer_connection(&ti->peerlist->pentry[i],hs)) { /* connection échouée, on supprime le pair */
+            for(j = i ; j < ti->peerlist->nbPeers-1 ; j++) {
+                ti->peerlist->pentry[j] = ti->peerlist->pentry[j+1] ;
+            }
+            ti->peerlist->nbPeers-- ;
+        }
+        else
+            i++ ;
     }
+    free(hs);
 }
