@@ -8,9 +8,6 @@
 #include "common.h"
 #include "rename.h"
 
-/* Renommage des fichiers et des sockets, pour pouvoir s'en servir d'indices dans des tableaux */
-struct map *file_map, *socket_map ;
-
 /* Tableau des torrent_list (et infos associées) */
 struct torrent_info **torrent_list ;
 
@@ -48,7 +45,7 @@ void handleNewConnection (int fd, struct sockaddr_in from, int len) {
     hs = construct_handshake(torrent_list[file_id]->torrent) ;
     send_handshake(peer, hs);
     free(hs);
-    printf("Peer %u added successfully.\n",peer_id) ;
+    printf("Peer %u added successfully (file %s).\n",peer_id,torrent_list[file_id]->torrent->filename) ;
 }
 
 /* Boucle surveillant les connections entrantes, afin d'ajouter d'éventuels nouveaux pairs */

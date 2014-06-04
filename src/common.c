@@ -5,6 +5,7 @@
 
 #include "common.h"
 #include "peerfunc.h"
+#include "rename.h"
 
 #define size_id 22
 /* Fonction d'affichage (ID et port). */
@@ -12,6 +13,7 @@ void print_id() {
     char s[size_id] ;
     int pos =0;
     u_int tmp ;
+    cyan();
     memset(s,'#',(size_id-1)*sizeof(char)) ;
     s[size_id-1]='\0' ;
     printf("%s\n",s);
@@ -41,7 +43,9 @@ void print_id() {
     printf("%s\n",s);
     
     memset(s,35,(size_id-1)*sizeof(char)) ;
-    printf("%s\n",s);
+    printf("%s",s);
+    normal();
+    printf("\n");
 }
 
 /* Hachage d'une chaîne de caractère. */
@@ -158,11 +162,13 @@ int init_peer_connection(struct proto_peer *peer, const struct proto_client_hand
 }
 
 /* Initialise la connection de tous les pairs (création des sockets, réalisation des handshakes). */
+/* Remplis la table de sockets, et le tableau faisant la correspondance entre sockets et fichiers. */
 void init_peers_connections(struct torrent_info *ti) {
     /* Construction du handshake, identique pour tous. */
     struct proto_client_handshake* hs = construct_handshake(ti->torrent) ;
     
     int i,j ;
+    u_int id_sock ;
     /* Parcours des pairs */
     i=0 ;
     while(i < ti->peerlist->nbPeers) {
@@ -172,8 +178,11 @@ void init_peers_connections(struct torrent_info *ti) {
             }
             ti->peerlist->nbPeers-- ;
         }
-        else
+        else {
+            id_sock = get_name(socket_map,(u_int)ti->peerlist->pentry[i].sockfd) ;
+            socket_to_file[id_sock] = ti->torrent->filehash ;
             i++ ;
+        }
     }
     free(hs);
 }
