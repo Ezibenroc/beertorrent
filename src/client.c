@@ -4,7 +4,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "client.h"
 #include "peerfunc.h"
 #include "common.h"
 #include "rename.h"
@@ -15,6 +14,7 @@ struct map *file_map, *socket_map ;
 /* Tableau des torrent_list (et infos associées) */
 struct torrent_info **torrent_list ;
 
+/* Fonction appelée lorsque l'on reçoit un handshake d'un nouveau pair. */
 void handleNewConnection (int fd, struct sockaddr_in from, int len) {
     struct proto_peer *peer;
     struct proto_client_handshake *hs ;
@@ -51,6 +51,7 @@ void handleNewConnection (int fd, struct sockaddr_in from, int len) {
     printf("Peer %u added successfully.\n",peer_id) ;
 }
 
+/* Boucle surveillant les connections entrantes, afin d'ajouter d'éventuels nouveaux pairs */
 void start_client() {
     struct sockaddr_in soc_in;
     int val;
@@ -137,7 +138,13 @@ int main(int argc, char *argv[]) {
     /* Initialisation des connections (création des sockets, handshake) */
     for(i=0 ; i < nb_files ; i++)
         init_peers_connections(torrent_list[i]) ;
-        
+    
+    
+    /*************************************************************/
+    /* Lancer ici tous les threads pour les échanges de fichiers */
+    /*************************************************************/
+    
+    /* Attente de nouveaux pairs */    
     start_client() ;
     return 0 ;
 }

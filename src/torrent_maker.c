@@ -1,3 +1,5 @@
+/* Création d'un fichier .beertorrent à partir d'un fichier donné en argument. */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -12,6 +14,10 @@
 #define DEFAULT_PIECE_LENGTH 16384
 #define DEFAULT_IP "127.0.0.1"
 
+/* Renvoie une chaîne de caractère .beertorrent correspondant à la chaîne donnée. */
+/*  abc.def -> abc.beertorrent
+    abcdef  -> abcdef.beertorrent
+    .abcdef -> abcdef.beertorrent */
 char *beertorrent_extension(char *s) {
     char *bt ;
     char tmp ;
@@ -30,7 +36,8 @@ char *beertorrent_extension(char *s) {
     return bt ;
 }
 
-/* From http://stackoverflow.com/questions/8236/how-do-you-determine-the-size-of-a-file-in-c */
+/* http://stackoverflow.com/questions/8236/how-do-you-determine-the-size-of-a-file-in-c */
+/* Renvoie la taille du fichier de nom donné. */
 off_t fsize(const char *filename) {
     struct stat st;
 

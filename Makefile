@@ -15,7 +15,7 @@ obj/tracker.o: src/tracker.c src/tracker.h
 obj/peerfunc.o: src/peerfunc.c src/peerfunc.h
 	$(CC) -c -o $@ $< $(CFLAGS)
 	
-obj/client.o: src/client.c src/client.h
+obj/client.o: src/client.c
 	$(CC) -c -o $@ $< $(CFLAGS)
 	
 obj/common.o: src/common.c src/common.h

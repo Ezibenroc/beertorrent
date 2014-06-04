@@ -15,7 +15,7 @@
 
 #include "common.h"
 
-/* Tracker functions */
+/* Renvoie la liste de pairs associés à un torrent (requête au tracker). */
 struct proto_tracker_peerlist * gettrackerinfos(struct beerTorrent * bt, u_int myId, u_short myPort)
 {
     struct proto_tracker_trackeranswer ans;
@@ -49,7 +49,7 @@ struct proto_tracker_peerlist * gettrackerinfos(struct beerTorrent * bt, u_int m
     memcpy (&sins.sin_addr, sp->h_addr_list[0], (size_t)sp->h_length);
     sins.sin_port = htons (PORTTRACKER);
 
-    /* print information about this host:*/
+    /* print information about this host:
 
     printf("Official name is: %s\n", sp->h_name);
     printf("    IP addresses: ");
@@ -58,14 +58,14 @@ struct proto_tracker_peerlist * gettrackerinfos(struct beerTorrent * bt, u_int m
         printf("%s ", inet_ntoa(*addr_list[i]));
     }
 
-    printf("\n");
+    printf("\n");*/
 
     if (connect (trackersock, (struct sockaddr *)&sins, sizeof(sins)) == -1) {
-        perror ("connect failed");
-        exit (1);
+        perror ("connect");
+        exit(errno);
     }
 
-    /* Send request to tracker */
+    /* Envoit de la requête au tracker. */
     req.fileHash = bt->filehash;
     req.peerId = myId;
     req.port = myPort;
@@ -73,7 +73,7 @@ struct proto_tracker_peerlist * gettrackerinfos(struct beerTorrent * bt, u_int m
     write(trackersock, &req.peerId, sizeof(req.peerId));
     write(trackersock, &req.port, sizeof(req.port));
 
-    /* Get answer from tracker */
+    /* Obtention de la réponse du tracker. */
     read(trackersock, &ans.status, sizeof(ans.status));
     read(trackersock, &ans.nbPeers, sizeof(ans.nbPeers));
     if(ans.status == 1) {
@@ -90,7 +90,7 @@ struct proto_tracker_peerlist * gettrackerinfos(struct beerTorrent * bt, u_int m
     peerList->pentry = malloc(sizeof(struct proto_peer) * MAX_PEERS);
     assert(peerList->pentry);
 
-    /* Get n peers */
+    /* Obtention des pairs. */
     peer_ind = 0 ;
     for(j=0; j<peerList->nbPeers; j++) {
 
@@ -99,7 +99,7 @@ struct proto_tracker_peerlist * gettrackerinfos(struct beerTorrent * bt, u_int m
         read(trackersock, &(peerList->pentry[peer_ind].port), sizeof(peerList->pentry[j].port));
         peerList->pentry[peer_ind].sockfd = -1 ;
         
-        if(peerList->pentry[peer_ind].peerId == my_id) 
+        if(peerList->pentry[peer_ind].peerId == my_id) /* c'est moi ! pas la peine de m'ajouter à la liste des pairs */
             continue ;
         
         peer_ind ++ ;  
@@ -117,8 +117,8 @@ struct proto_tracker_peerlist * gettrackerinfos(struct beerTorrent * bt, u_int m
     return peerList;
 }
 
-/* Beertorrent functions */
 
+/* Initialisation d'un champ de bits. */
 struct bitfield * createbitfield(u_int filelength, u_int piecelength) {
     struct bitfield * bf = malloc(sizeof(struct bitfield));
     assert(bf);
@@ -133,11 +133,13 @@ struct bitfield * createbitfield(u_int filelength, u_int piecelength) {
     return bf;
 }
 
+/* Suppression d'un champ de bits. */
 void deletebitfield(struct bitfield * bf) {
     free(bf->array);
     free(bf);
 }
 
+/* Copie d'un champ. */
 void setbitfield(struct bitfield * dst, struct bitfield * src) {
     u_int i = 0 ;
     memcpy(dst->array, src->array, dst->arraysize);
@@ -148,15 +150,18 @@ void setbitfield(struct bitfield * dst, struct bitfield * src) {
     assert(dst->nbpiece == src->nbpiece);
 }
 
+/* Met le bit d'indice donné à 1 dans le champ. */
 int isinbitfield(struct bitfield * bf, u_int id) {
     return !!(bf->array[id/8] & (0x1 << (id%8)));
 }
 
+/* Renvoie vrai ssi le bit d'indice donné est dans le champ. */
 void setbitinfield(struct bitfield * bf, u_int id) {
     bf->nbpiece += (u_int)!isinbitfield(bf,id) ;
     bf->array[id/8] |= (u_char)(0x1 << (id%8));
 }
 
+/* Initialise un torrent à partir du fichier beertorrent donné. */
 struct beerTorrent * addtorrent(char * filename) {
 
     FILE *fp;
@@ -251,6 +256,7 @@ struct beerTorrent * addtorrent(char * filename) {
     return bt;
 }
 
+/* Suppression d'un torrent. */
 void deletetorrent(struct beerTorrent *t) {
     fclose(t->fp);
     assert(pthread_mutex_destroy(&t->file_lock)==0);
@@ -262,6 +268,7 @@ void deletetorrent(struct beerTorrent *t) {
     free(t) ;
 }
 
+/* Écriture simplifiée et vérifiée dans une socket. */
 int write_socket(int fd,const char *buf,int len) {
     int currentsize=0;
     while(currentsize<len) {
@@ -272,6 +279,7 @@ int write_socket(int fd,const char *buf,int len) {
     return currentsize;
 }
 
+/* Lecture simplifiée et vérifiée dans une socket. */
 int readblock(int fd, char* buffer, int len) {
     int ret  = 0;
     int count = 0;

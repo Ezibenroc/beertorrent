@@ -33,14 +33,14 @@ void destroy_map(struct map *m) ;
 
 #define reinit_map(m) destroy_map(m) ; m=init_map() ;
 
-/* Retourne le nouveau nom du client id */
+/* Retourne le nouveau nom. */
 /* S'il n'existe pas dans la map, l'ajoute. */
 u_int get_name(struct map *m, u_int id) ;
 
-/* Retourne l'ID du client */
+/* Retourne le nom original. */
 u_int get_id(struct map *m, u_int name);
 
-/* Retourne le nombre de clients stockés. */
+/* Retourne le nombre de clés stockés. */
 u_int get_map_size(struct map *m) ;
 
 #endif

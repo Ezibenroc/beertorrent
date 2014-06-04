@@ -4,6 +4,7 @@
 
 #include "rename.h"
 
+/* Initialise la map. */
 struct map *init_map() {
     int i ;
     struct map *m = malloc(sizeof(struct map)) ;
@@ -16,6 +17,7 @@ struct map *init_map() {
     return m ;
 }
 
+/* Libère la map. */
 void destroy_map(struct map *m) {
     int i ;
     struct map_entry *p, *old ;
@@ -32,6 +34,8 @@ void destroy_map(struct map *m) {
     free(m);
 }
 
+/* Retourne le nouveau nom. */
+/* S'il n'existe pas dans la map, l'ajoute. */
 u_int get_name(struct map *m,u_int id) {
     struct map_entry *p, *new ;
     u_int i = id%(ID_MAX+1) ;
@@ -62,11 +66,13 @@ u_int get_name(struct map *m,u_int id) {
     }
 }
 
+/* Retourne le nom original. */
 u_int get_id(struct map *m, u_int name) {
     assert(name < m->map_size) ; /* on ne met pas de mutex ici, pour ne pas allourdir le code */
     return m->id_from_name[name] ;
 }
 
+/* Retourne le nombre de clés stockés. */
 u_int get_map_size(struct map *m) {
     u_int s ;
     pthread_mutex_lock(&m->size_lock) ;

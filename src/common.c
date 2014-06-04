@@ -6,6 +6,7 @@
 #include "common.h"
 
 #define size_id 22
+/* Fonction d'affichage (ID et port). */
 void print_id() {
     char s[size_id] ;
     int pos =0;
@@ -42,6 +43,7 @@ void print_id() {
     printf("%s\n",s);
 }
 
+/* Hachage d'une chaîne de caractère. */
 u_int hash(u_char *str)
 {
     u_int hash_ = 0;
@@ -53,6 +55,7 @@ u_int hash(u_char *str)
     return hash_;
 }
 
+/* Hachage d'un fichier (donné par son descripteur). */
 u_int file2hash(int fd)
 {
 
@@ -66,6 +69,7 @@ u_int file2hash(int fd)
     return h;
 }
 
+/* Retourne un pointeur vers le début de l'extension du fichier. */
 char *get_filename_ext(char *filename)
 {
     char *dot = strrchr(filename, '.');
@@ -73,7 +77,7 @@ char *get_filename_ext(char *filename)
     return dot + 1;
 }
 
-
+/* Initialisation du tableau cancel. */
 void init_cancel() {
     int i ;
     for(i = 0 ; i < N_SOCK ; i++) {
@@ -83,6 +87,7 @@ void init_cancel() {
     }
 }
 
+/* Construit un handshake correspondant au torrent donné. */
 struct proto_client_handshake* construct_handshake(struct beerTorrent *torrent) {
     struct proto_client_handshake* hs ;
     hs = (struct proto_client_handshake*) malloc(sizeof(struct proto_client_handshake)) ;
@@ -93,6 +98,7 @@ struct proto_client_handshake* construct_handshake(struct beerTorrent *torrent) 
     return hs ;
 }
 
+/* Envoie le handshake au pair donné. */
 void send_handshake(const struct proto_peer *peer, const struct proto_client_handshake *hs) {
     write(peer->sockfd,&hs->version,sizeof(hs->version)) ;
     write(peer->sockfd,&hs->filehash,sizeof(hs->filehash)) ;
@@ -100,6 +106,7 @@ void send_handshake(const struct proto_peer *peer, const struct proto_client_han
 
 }
 
+/* Reçois un handshake du pair donné, et vérifie qu'il est cohérent avec le handshake envoyé. */
 void receive_handshake(const struct proto_peer *peer, const struct proto_client_handshake *hs) {
     u_char c ; u_int i ;
     read(peer->sockfd, &c, sizeof(u_char));
@@ -110,6 +117,8 @@ void receive_handshake(const struct proto_peer *peer, const struct proto_client_
     assert(i==peer->peerId) ;
 }
 
+/* Initialise la connection pour un pair, avec le handshake donné. */
+/* Créé une socket et réalise le handshake. */
 int init_peer_connection(struct proto_peer *peer, const struct proto_client_handshake *hs) {
     int fd ;
     struct hostent *sp;
@@ -143,6 +152,7 @@ int init_peer_connection(struct proto_peer *peer, const struct proto_client_hand
     
 }
 
+/* Initialise la connection de tous les pairs (création des sockets, réalisation des handshakes). */
 void init_peers_connections(struct torrent_info *ti) {
     /* Construction du handshake, identique pour tous. */
     struct proto_client_handshake* hs = construct_handshake(ti->torrent) ;
