@@ -2,10 +2,14 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <stdlib.h>
+#include <poll.h>
 
 #include "common.h"
 #include "peerfunc.h"
 #include "rename.h"
+
 
 #define size_id 22
 /* Fonction d'affichage (ID et port). */
@@ -85,7 +89,7 @@ char *get_filename_ext(char *filename)
 struct waiting_queue *init_waiting_queue() {
     struct waiting_queue *q ;
     q = (struct waiting_queue*) malloc(sizeof(struct waiting_queue)) ;
-    q->first = N_SOCK-1 ;
+    q->first = 0 ;
     q->last = 0 ;
     pthread_mutex_init(&(q->lock), NULL);
     sem_init(&(q->full),0,0) ; /* initialement aucun élément */
@@ -94,7 +98,7 @@ struct waiting_queue *init_waiting_queue() {
 struct non_waiting_queue *init_non_waiting_queue() {
     struct non_waiting_queue *q ;
     q = (struct non_waiting_queue*) malloc(sizeof(struct non_waiting_queue)) ;
-    q->first = N_SOCK-1 ;
+    q->first = 0 ;
     q->last = 0 ;
     pthread_mutex_init(&(q->lock), NULL);
     return q ;
@@ -242,4 +246,61 @@ void send_bitfield(struct beerTorrent *torrent, struct proto_peer *peer) {
     assert_write_socket(peer->sockfd,&(torrent->have->totalpiece),sizeof(u_int)) ;
     /* Pour se conformer à la specification donnée, on n'envoie pas le champ "nbpiece".
        Le récepteur aura à le recalculer. */
+}
+
+/* Surveille toutes les sockets référencées. */
+/* Fonction exécutée par un thread. */
+void *watch_sockets(void *useless) {
+    u_int i,size, i_fd ;
+    int nb_readable = 0 ;
+    struct pollfd *socket_set;
+    int timeout = 1000;   /* timeout (1s) pour poll, afin de régulièrement remettre les sockets dans l'ensemble */
+    useless=useless;
+    /* Initialisation. */
+    socket_set = (struct pollfd*) malloc(sizeof(struct pollfd)*N_SOCK) ;
+    size = get_map_size(socket_map) ;
+    for(i = 0 ; i < N_SOCK ; i++) {
+        socket_set[i].events = POLLIN ;
+        socket_set[i].revents = 0 ;
+    }
+    for(i = 0 ; i < size ; i++)
+        socket_set[i].fd = (int) get_id(socket_map,i) ;
+    for(i = size ; i < N_SOCK ; i++)
+        socket_set[i].fd = -1 ; /* pas de socket pour l'instant */
+    /* Boucle d'écoute */
+    while(1) {
+        if((nb_readable=poll(socket_set,size,timeout))<0) {
+            perror("poll");
+            exit(errno) ;
+        }
+        /* On réactive les sockets de handled_request */
+        pthread_mutex_lock(&handled_request->lock) ;
+
+        while(handled_request->first != handled_request->last) {
+            i_fd = get_name(socket_map,(u_int)handled_request->queue[handled_request->first]) ;
+            size = get_map_size(socket_map) ; /* peut être de nouvelles sockets */
+            assert(socket_set[i_fd].fd < 0) ;
+            socket_set[i_fd].fd = handled_request->queue[handled_request->first] ;
+            handled_request->first ++ ;
+        }
+        pthread_mutex_unlock(&handled_request->lock) ;
+        /* On place dans request toutes les sockets avec un message en attente. */
+        if(nb_readable == 0) continue ;
+        pthread_mutex_lock(&request->lock) ;
+        for(i = 0 ; i < size ; i++) {
+            if(socket_set[i].revents != 0) { /* un événement ! */
+                assert(socket_set[i].revents == POLLIN) ;
+                assert(socket_set[i].fd > 0) ;
+                request->queue[request->last] = socket_set[i].fd ;
+                request->last = (request->last+1)%N_SOCK ;
+                if(sem_post(&request->full) < 0) { /* signal sur la semaphore */
+                    perror("sem_post");
+                    exit(errno) ;
+                }
+                socket_set[i].fd = -1 ; /* desactive la surveillance sur cette socket */
+            }
+        }
+        pthread_mutex_unlock(&request->lock) ;
+    }
+    return useless;
 }

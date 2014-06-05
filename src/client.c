@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+#include <pthread.h>
+#include <errno.h>
 
 #include "peerfunc.h"
 #include "common.h"
@@ -30,11 +32,6 @@ void handleNewConnection (int fd, struct sockaddr_in from, int len) {
     /* Ajout de ce pair à la liste des pairs du fichier */
     peer = (struct proto_peer*) malloc(sizeof(struct proto_peer)) ;
     peer->peerId = peer_id ;
-    
-    blue();
-    printf("Receive handshake from %d\n",peer->peerId) ;
-    normal() ;
-
     peer->ipaddr = from.sin_addr ; /* remarque : pas besoin */
     peer->port = 0 ; /* on ne connais pas le port, mais on n'en a pas besoin */
     peer->sockfd = fd ;
@@ -42,6 +39,16 @@ void handleNewConnection (int fd, struct sockaddr_in from, int len) {
     torrent_list[file_id]->peerlist->pentry[torrent_list[file_id]->peerlist->nbPeers] = *peer ;
     assert(++torrent_list[file_id]->peerlist->nbPeers != 0) ;
     pthread_mutex_unlock(&torrent_list[file_id]->peerlist->lock) ;
+        
+    blue();
+    printf("Receive handshake from %d\n",peer->peerId) ;
+    normal() ;
+
+    /* Ajoute la socket dans la queue handled_request, afin que l'on commence à écouter par la suite. */
+    pthread_mutex_lock(&(handled_request->lock)) ;
+    handled_request->queue[handled_request->last] = peer->sockfd ;
+    handled_request->last = (handled_request->last+1)%N_SOCK ;
+    pthread_mutex_unlock(&(handled_request->lock)) ;
     
     /* Réponse au handshake */
     hs = construct_handshake(torrent_list[file_id]->torrent) ;
@@ -91,7 +98,7 @@ void start_client() {
 
 int main(int argc, char *argv[]) {
     unsigned int tmp,i,id_arg ;
-   
+    pthread_t watcher ; /*sender[N_THREAD] ; */
     
     file_map = init_map() ; 
     socket_map = init_map() ;
@@ -145,7 +152,10 @@ int main(int argc, char *argv[]) {
     for(i=0 ; i < nb_files ; i++)
         init_peers_connections(torrent_list[i]) ;
     
-    
+    if((pthread_create(&watcher,NULL,watch_sockets,NULL))!=0) {
+        perror("pthread_create");
+        exit(errno);
+    }
     /*************************************************************/
     /* Lancer ici tous les threads pour les échanges de fichiers */
     /*************************************************************/

@@ -15,6 +15,7 @@
 #define min(x, y) (x < y ? x : y)
 
 #define N_SOCK 1024
+#define N_THREAD 4
 
 /* ID du pair. */
 u_int my_id ;
@@ -98,5 +99,9 @@ void init_peers_connections(struct torrent_info *ti);
 
 /* Envoie le champ de bit au pair donné. */
 void send_bitfield(struct beerTorrent *torrent, struct proto_peer *peer);
+
+/* Surveille toutes les sockets référencées. */
+/* Fonction exécutée par un thread. */
+void *watch_sockets(void*) ;
 
 #endif
