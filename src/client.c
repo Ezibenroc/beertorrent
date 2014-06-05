@@ -16,7 +16,6 @@ void handleNewConnection (int fd, struct sockaddr_in from, int len) {
     u_int h,peer_id,file_id,tmp ;
     u_char version ;
     len=len;
-    printf("New peer...\n");
     read(fd, &version, sizeof(u_char));
     assert(version==PROTO_VERSION) ;
     read(fd, &h, sizeof(u_int));
@@ -31,6 +30,11 @@ void handleNewConnection (int fd, struct sockaddr_in from, int len) {
     /* Ajout de ce pair à la liste des pairs du fichier */
     peer = (struct proto_peer*) malloc(sizeof(struct proto_peer)) ;
     peer->peerId = peer_id ;
+    
+    blue();
+    printf("Receive handshake from %d\n",peer->peerId) ;
+    normal() ;
+
     peer->ipaddr = from.sin_addr ; /* remarque : pas besoin */
     peer->port = 0 ; /* on ne connais pas le port, mais on n'en a pas besoin */
     peer->sockfd = fd ;
@@ -44,6 +48,7 @@ void handleNewConnection (int fd, struct sockaddr_in from, int len) {
     send_handshake(peer, hs);
     free(hs);
     printf("Peer %u added successfully (file %s).\n",peer_id,torrent_list[file_id]->torrent->filename) ;
+    send_bitfield(torrent_list[file_id]->torrent,peer) ;
 }
 
 /* Boucle surveillant les connections entrantes, afin d'ajouter d'éventuels nouveaux pairs */
@@ -100,8 +105,6 @@ int main(int argc, char *argv[]) {
     
     print_id();    
     
-    init_cancel() ;
-    
     if(argc < 2) {
         fprintf(stderr,"SYNTAX: %s [filenames]\n",argv[0]) ;
         exit(EXIT_FAILURE) ;
@@ -131,6 +134,12 @@ int main(int argc, char *argv[]) {
     }
     nb_files -= id_arg-i-1 ;
     printf("Total files referenced : %d\n",nb_files);
+    
+    /* Initialisation des deux files de requêtes. */
+    init_queues() ;
+    
+    /* Initialisation du tableau répertoriant les requêtes "cancel". */
+    init_cancel() ;
     
     /* Initialisation des connections (création des sockets, handshake) */
     for(i=0 ; i < nb_files ; i++)

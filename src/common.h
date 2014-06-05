@@ -1,10 +1,14 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#include <semaphore.h>
+
 #include "peerfunc.h"
+
 
 #define blue() printf("\033[%sm","34")
 #define cyan() printf("\033[%sm","36") 
+#define green() printf("\033[%sm","32") 
 #define normal() printf("\033[%sm","0") 
 
 #define max(x, y) (x > y ? x : y)
@@ -23,10 +27,38 @@ struct map *file_map, *socket_map ;
 /* socket_to_file[i] est le hash du fichier associé à la socket renommé en i */
 u_int socket_to_file[N_SOCK] ;
 
+/* Champs de bits des pairs. */
 struct bitfield *peer_bitfield[N_SOCK] ;
 
 /* Tableau des torrent_list (et infos associées) */
 struct torrent_info **torrent_list ;
+
+/* FIFO de socket. */
+/* Un thread repère les sockets ayant un message et les place dans la file request. */
+/* Les autres treads défilent une socket, lisent son message et le traitent, et la placent dans la file handled_request. */
+struct waiting_queue {
+    int queue[N_SOCK] ;
+    int first ; /* Indice du premier élément ajouté. */
+    int last ;  /* Indice du dernier élément ajouté. */
+    pthread_mutex_t lock ;
+    sem_t full ;
+};
+struct waiting_queue *request ;
+
+struct non_waiting_queue {
+    int queue[N_SOCK] ;
+    int first ; /* Indice du premier élément ajouté. */
+    int last ;  /* Indice du dernier élément ajouté. */
+    pthread_mutex_t lock ;
+};
+struct non_waiting_queue *handled_request ;
+
+struct waiting_queue *init_waiting_queue() ;
+struct non_waiting_queue *init_non_waiting_queue() ;
+#define init_queues() request=init_waiting_queue() ; handled_request=init_non_waiting_queue()
+
+/* Retourne la tête de la file (appel bloquant si file vide). */
+int pop(struct waiting_queue *q) ;
 
 /* Nombre de torrents */
 unsigned int nb_files ;
@@ -48,7 +80,7 @@ struct cancel_entry {
     u_int msg[N_CANCEL][2] ; /* tableau circulaire représentant les message "cancel" reçus */
     u_int ind ;
     pthread_mutex_t lock ;
-} cancel[N_SOCK] ;    
+} cancel[N_SOCK] ;
 
 /* Initialisation du tableau cancel. */
 void init_cancel() ;
@@ -60,11 +92,11 @@ struct proto_client_handshake* construct_handshake(struct beerTorrent *torrent);
 /* Envoie le handshake au pair donné. */
 void send_handshake(const struct proto_peer *peer, const struct proto_client_handshake *hs);
 
-/* Initialise la connection de tous les pairs (création des sockets, réalisation des handshakes). */
+/* Initialise la connection de tous les pairs (création des sockets, réalisation des handshakes, envoi des bitfields). */
 /* Remplis la table de sockets, et le tableau faisant la correspondance entre sockets et fichiers. */
 void init_peers_connections(struct torrent_info *ti);
 
-/*
-void send_bitfield(struct torrent_state *torrent_state, struct peer *peer);*/
+/* Envoie le champ de bit au pair donné. */
+void send_bitfield(struct beerTorrent *torrent, struct proto_peer *peer);
 
 #endif

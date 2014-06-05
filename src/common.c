@@ -13,7 +13,7 @@ void print_id() {
     char s[size_id] ;
     int pos =0;
     u_int tmp ;
-    cyan();
+    green();
     memset(s,'#',(size_id-1)*sizeof(char)) ;
     s[size_id-1]='\0' ;
     printf("%s\n",s);
@@ -82,6 +82,35 @@ char *get_filename_ext(char *filename)
     return dot + 1;
 }
 
+struct waiting_queue *init_waiting_queue() {
+    struct waiting_queue *q ;
+    q = (struct waiting_queue*) malloc(sizeof(struct waiting_queue)) ;
+    q->first = N_SOCK-1 ;
+    q->last = 0 ;
+    pthread_mutex_init(&(q->lock), NULL);
+    sem_init(&(q->full),0,0) ; /* initialement aucun élément */
+    return q ;
+}
+struct non_waiting_queue *init_non_waiting_queue() {
+    struct non_waiting_queue *q ;
+    q = (struct non_waiting_queue*) malloc(sizeof(struct non_waiting_queue)) ;
+    q->first = N_SOCK-1 ;
+    q->last = 0 ;
+    pthread_mutex_init(&(q->lock), NULL);
+    return q ;
+}
+
+/* Retourne la tête de la file (appel bloquant si file vide). */
+int pop(struct waiting_queue *q) {
+    int tmp ;
+    sem_wait(&(q->full)) ;
+    pthread_mutex_lock(&q->lock) ;
+    tmp = q->queue[q->first] ;
+    q->first = (q->first+1)%N_SOCK ;
+    pthread_mutex_unlock(&q->lock) ;  
+    return tmp ;  
+}
+
 /* Initialisation du tableau cancel. */
 void init_cancel() {
     int i ;
@@ -105,6 +134,9 @@ struct proto_client_handshake* construct_handshake(struct beerTorrent *torrent) 
 
 /* Envoie le handshake au pair donné. */
 void send_handshake(const struct proto_peer *peer, const struct proto_client_handshake *hs) {
+    cyan() ;
+    printf("Send handshake to %d\n",peer->peerId) ;
+    normal() ;
     write(peer->sockfd,&hs->version,sizeof(hs->version)) ;
     write(peer->sockfd,&hs->filehash,sizeof(hs->filehash)) ;
     write(peer->sockfd,&hs->peerId,sizeof(hs->peerId)) ;
@@ -114,6 +146,9 @@ void send_handshake(const struct proto_peer *peer, const struct proto_client_han
 /* Reçois un handshake du pair donné, et vérifie qu'il est cohérent avec le handshake envoyé. */
 void receive_handshake(const struct proto_peer *peer, const struct proto_client_handshake *hs) {
     u_char c ; u_int i ;
+    blue();
+    printf("Receive handshake from %d\n",peer->peerId) ;
+    normal() ;
     read(peer->sockfd, &c, sizeof(u_char));
     assert(c==hs->version) ;
     read(peer->sockfd, &i, sizeof(u_int));
@@ -161,7 +196,7 @@ int init_peer_connection(struct proto_peer *peer, const struct proto_client_hand
     return 1 ;
 }
 
-/* Initialise la connection de tous les pairs (création des sockets, réalisation des handshakes). */
+/* Initialise la connection de tous les pairs (création des sockets, réalisation des handshakes, envoi des bitfields). */
 /* Remplis la table de sockets, et le tableau faisant la correspondance entre sockets et fichiers. */
 void init_peers_connections(struct torrent_info *ti) {
     /* Construction du handshake, identique pour tous. */
@@ -182,8 +217,29 @@ void init_peers_connections(struct torrent_info *ti) {
             id_sock = get_name(socket_map,(u_int)ti->peerlist->pentry[i].sockfd) ;
             socket_to_file[id_sock] = ti->torrent->filehash ;
             peer_bitfield[id_sock] = createbitfield(ti->torrent->filelength,ti->torrent->piecelength) ; /* bitfield initialisé à 00...0 */
+            send_bitfield(ti->torrent,&ti->peerlist->pentry[i]) ;
             i++ ;
         }
     }
     free(hs);
+}
+
+
+/* Envoie le champ de bit au pair donné. */
+void send_bitfield(struct beerTorrent *torrent, struct proto_peer *peer) {
+    size_t size = (size_t) 1+torrent->have->arraysize+3*sizeof(u_int) ;
+    char m_id = 2 ;
+    cyan() ;
+    printf("Send bitfield to %d\n",peer->peerId) ;
+    normal() ;
+    /* Length */
+    assert_write_socket(peer->sockfd,&size,sizeof(int)) ;
+    /* Message id */
+    assert_write_socket(peer->sockfd,&m_id,sizeof(char)) ;
+    /* Champs */
+    assert_write_socket(peer->sockfd,torrent->have->array,(int)torrent->have->arraysize) ;
+    assert_write_socket(peer->sockfd,&(torrent->have->arraysize),sizeof(u_int)) ;
+    assert_write_socket(peer->sockfd,&(torrent->have->totalpiece),sizeof(u_int)) ;
+    /* Pour se conformer à la specification donnée, on n'envoie pas le champ "nbpiece".
+       Le récepteur aura à le recalculer. */
 }
