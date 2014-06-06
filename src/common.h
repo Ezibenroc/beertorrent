@@ -17,6 +17,9 @@
 #define N_SOCK 1024
 #define N_THREAD 4
 
+#define pthread_mutex_lock(x) assert(!pthread_mutex_lock(x))
+#define pthread_mutex_unlock(x) assert(!pthread_mutex_unlock(x))
+
 /* ID du pair. */
 u_int my_id ;
 /* Port du pair. */
@@ -33,8 +36,8 @@ u_int socket_to_file[N_SOCK] ;
 /* socket_to_peer[i] est l'id du pair associé à la socket renommée en i */
 u_int socket_to_peer[N_SOCK] ;
 
-/* Champs de bits des pairs. */
-struct bitfield *peer_bitfield[N_SOCK] ;
+/* Listes des pairs (indicé par l'id de leur socket). */
+struct proto_peer *peers[N_SOCK] ;
 
 /* Tableau des torrent_list (et infos associées) */
 struct torrent_info **torrent_list ;
@@ -101,9 +104,6 @@ void send_handshake(const struct proto_peer *peer, const struct proto_client_han
 /* Initialise la connection de tous les pairs (création des sockets, réalisation des handshakes, envoi des bitfields). */
 /* Remplis la table de sockets, et le tableau faisant la correspondance entre sockets et fichiers. */
 void init_peers_connections(struct torrent_info *ti);
-
-/* Envoie le champ de bit au pair donné. */
-void send_bitfield(struct beerTorrent *torrent, struct proto_peer *peer);
 
 /* Surveille toutes les sockets référencées. */
 /* Fonction exécutée par un thread. */

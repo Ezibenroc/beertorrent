@@ -174,7 +174,7 @@ int init_peer_connection(struct proto_peer *peer, const struct proto_client_hand
     int fd ;
     struct hostent *sp;
     struct sockaddr_in sins;
-    
+    pthread_mutex_lock(&peer->lock) ;
     sp = gethostbyaddr(&(peer->ipaddr), sizeof(peer->ipaddr), AF_INET);
     if (sp == NULL) {
         perror("gethostbyaddr");
@@ -201,6 +201,7 @@ int init_peer_connection(struct proto_peer *peer, const struct proto_client_hand
         exit (errno);
     }
     peer->sockfd = fd ;
+    pthread_mutex_unlock(&peer->lock) ;
     send_handshake(peer,hs) ;
     receive_handshake(peer,hs) ; 
     return 1 ;
@@ -227,8 +228,12 @@ void init_peers_connections(struct torrent_info *ti) {
             id_sock = get_name(socket_map,(u_int)ti->peerlist->pentry[i].sockfd) ;
             socket_to_file[id_sock] = ti->torrent->filehash ;
             socket_to_peer[id_sock] = ti->peerlist->pentry[i].peerId ;
-            peer_bitfield[id_sock] = createbitfield(ti->torrent->filelength,ti->torrent->piecelength) ; /* bitfield initialisé à 00...0 */
-            send_bitfield(ti->torrent,&ti->peerlist->pentry[i]) ;
+            peers[id_sock] = ti->peerlist->pentry ;
+            pthread_mutex_lock(&ti->peerlist->pentry[i].lock) ;
+            ti->peerlist->pentry[i].pieces = createbitfield(ti->torrent->filelength,ti->torrent->piecelength) ; /* bitfield initialisé à 00...0 */
+            pthread_mutex_unlock(&ti->peerlist->pentry[i].lock) ;
+            if(ti->torrent->have->nbpiece >0) /* pas la peine d'envoyer le bitfield si on n'a pas de pieces */
+                send_bitfield(ti->torrent,&ti->peerlist->pentry[i]) ;
             i++ ;
         }
     }
@@ -236,26 +241,6 @@ void init_peers_connections(struct torrent_info *ti) {
 }
 
 
-/* Envoie le champ de bit au pair donné. */
-void send_bitfield(struct beerTorrent *torrent, struct proto_peer *peer) {
-    size_t size = (size_t) 1+torrent->have->arraysize+3*sizeof(u_int) ;
-    char m_id = 2 ;
-    pthread_mutex_lock(&print_lock) ;
-    cyan() ;
-    printf("Send bitfield to %d\n",peer->peerId) ;
-    normal() ;
-    pthread_mutex_unlock(&print_lock) ;
-    /* Length */
-    assert_write_socket(peer->sockfd,&size,sizeof(int)) ;
-    /* Message id */
-    assert_write_socket(peer->sockfd,&m_id,sizeof(char)) ;
-    /* Champs */
-    assert_write_socket(peer->sockfd,torrent->have->array,(int)torrent->have->arraysize) ;
-    assert_write_socket(peer->sockfd,&(torrent->have->arraysize),sizeof(u_int)) ;
-    assert_write_socket(peer->sockfd,&(torrent->have->totalpiece),sizeof(u_int)) ;
-    /* Pour se conformer à la specification donnée, on n'envoie pas le champ "nbpiece".
-       Le récepteur aura à le recalculer. */
-}
 
 /* Surveille toutes les sockets référencées. */
 /* Fonction exécutée par un thread. */
@@ -361,7 +346,7 @@ void *treat_sockets(void* ptr) {
                 printf("Received BIT_FIELD from peer %d (file %s)\n",peer_id,torrent_list[file_name]->torrent->filename);
                 normal() ;
                 pthread_mutex_unlock(&print_lock) ;
-                printf("\t\t\t\t\t\tNOT YET IMPLEMENTED.\n");
+                read_bitfield(peers[s_name],message_length);
             break ;
             case REQUEST:
                 blue();

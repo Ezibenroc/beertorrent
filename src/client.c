@@ -35,6 +35,8 @@ void handleNewConnection (int fd, struct sockaddr_in from, int len) {
     peer->ipaddr = from.sin_addr ; /* remarque : pas besoin */
     peer->port = 0 ; /* on ne connais pas le port, mais on n'en a pas besoin */
     peer->sockfd = fd ;
+    assert(pthread_mutex_init(&peer->lock, NULL)==0);
+    peer->pieces = createbitfield(torrent_list[file_id]->torrent->filelength,torrent_list[file_id]->torrent->piecelength) ; /* bitfield initialisé à 00...0 */
     pthread_mutex_lock(&torrent_list[file_id]->peerlist->lock) ;
     torrent_list[file_id]->peerlist->pentry[torrent_list[file_id]->peerlist->nbPeers] = *peer ;
     assert(++torrent_list[file_id]->peerlist->nbPeers != 0) ;
@@ -43,6 +45,7 @@ void handleNewConnection (int fd, struct sockaddr_in from, int len) {
     sock_id = get_name(socket_map,(u_int)fd) ;
     socket_to_file[sock_id] = torrent_list[file_id]->torrent->filehash ;
     socket_to_peer[sock_id] = peer->peerId ;
+    peers[sock_id] = peer ;
     
     pthread_mutex_lock(&print_lock) ;
     green();
@@ -65,7 +68,8 @@ void handleNewConnection (int fd, struct sockaddr_in from, int len) {
     pthread_mutex_lock(&print_lock) ;
     printf("Peer %u added successfully (file %s).\n",peer_id,torrent_list[file_id]->torrent->filename) ;
     pthread_mutex_unlock(&print_lock) ;
-    send_bitfield(torrent_list[file_id]->torrent,peer) ;
+    if(torrent_list[file_id]->torrent->have->nbpiece >0) /* pas la peine d'envoyer le bitfield si on n'a pas de pieces */
+        send_bitfield(torrent_list[file_id]->torrent,peer) ;
 }
 
 /* Boucle surveillant les connections entrantes, afin d'ajouter d'éventuels nouveaux pairs */
@@ -166,6 +170,7 @@ int main(int argc, char *argv[]) {
     for(i=0 ; i < nb_files ; i++)
         init_peers_connections(torrent_list[i]) ;
     
+    /* Création des threads. */
     if((pthread_create(&watcher,NULL,watch_sockets,NULL))!=0) {
         perror("pthread_create");
         exit(errno);
@@ -176,9 +181,6 @@ int main(int argc, char *argv[]) {
             exit(errno);
         }    
     }
-    /*************************************************************/
-    /* Lancer ici tous les threads pour les échanges de fichiers */
-    /*************************************************************/
     
     /* Attente de nouveaux pairs */    
     start_client() ;

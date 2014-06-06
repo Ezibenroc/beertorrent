@@ -103,7 +103,7 @@ struct proto_tracker_peerlist * gettrackerinfos(struct beerTorrent * bt, u_int m
         
         if(peerList->pentry[peer_ind].peerId == my_id) /* c'est moi ! pas la peine de m'ajouter à la liste des pairs */
             continue ;
-        
+        assert(pthread_mutex_init(&peerList->pentry[peer_ind].lock, NULL)==0);
         peer_ind ++ ;  
     }
     
@@ -130,7 +130,6 @@ void delete_peer(struct proto_peer *p) {
 struct bitfield * createbitfield(u_int filelength, u_int piecelength) {
     struct bitfield * bf = malloc(sizeof(struct bitfield));
     assert(bf);
-
     bf->totalpiece = (filelength-1) / piecelength + 1;
     bf->nbpiece = 0;
     bf->arraysize = (bf->totalpiece-1) / 8 + 1;
@@ -242,6 +241,7 @@ struct beerTorrent * addtorrent(char * filename) {
 
         printf("%s already downloaded.\n", bt->filename);
         bt->download_ended = true;
+        bt->have->nbpiece = bt->have->totalpiece ;
         bt->last_downloaded_piece = (int)bt->have->nbpiece-1 ;
 
     }
@@ -301,4 +301,43 @@ int readblock(int fd, char* buffer, int len) {
         count += ret;
     }
     return count;
+}
+
+
+/* Envoie le champ de bit au pair donné. */
+void send_bitfield(struct beerTorrent *torrent, struct proto_peer *peer) {
+    size_t size = (size_t) 1+torrent->have->arraysize+2*sizeof(u_int) ;
+    char m_id = 2 ;
+    pthread_mutex_lock(&print_lock) ;
+    cyan() ;
+    printf("Send bitfield to %d\n",peer->peerId) ;
+    normal() ;
+    pthread_mutex_unlock(&print_lock) ;
+    /* Length */
+    assert_write_socket(peer->sockfd,&size,sizeof(int)) ;
+    /* Message id */
+    assert_write_socket(peer->sockfd,&m_id,sizeof(char)) ;
+    /* Champs */
+    pthread_mutex_lock(&torrent->have_lock) ;
+    assert_write_socket(peer->sockfd,torrent->have->array,(int)torrent->have->arraysize) ;
+    assert_write_socket(peer->sockfd,&(torrent->have->arraysize),sizeof(u_int)) ;
+    assert_write_socket(peer->sockfd,&(torrent->have->totalpiece),sizeof(u_int)) ;
+    pthread_mutex_unlock(&torrent->have_lock) ;
+    /* Pour se conformer à la specification donnée, on n'envoie pas le champ "nbpiece".
+       Le récepteur aura à le recalculer. */
+}
+
+/* Lecture du bitfield d'un pair sur sa socket associée, message de taille length. */
+void read_bitfield(struct proto_peer *peer, int length) {
+    u_int i ;
+    pthread_mutex_lock(&peer->lock) ;
+    assert_read_socket(peer->sockfd,peer->pieces->array,length-1-2*(int)sizeof(u_int)) ;
+    assert_read_socket(peer->sockfd,&peer->pieces->arraysize,sizeof(u_int)) ;
+    assert_read_socket(peer->sockfd,&peer->pieces->totalpiece,sizeof(u_int)) ;
+    /* Calcul de nbpiece */
+    peer->pieces->nbpiece = 0 ;
+    for(i = 0 ; i < peer->pieces->totalpiece ; i++)
+        if(isinbitfield(peer->pieces,i))
+            peer->pieces->nbpiece ++ ;
+    pthread_mutex_unlock(&peer->lock) ;
 }

@@ -62,6 +62,8 @@ struct proto_peer {
     u_int peerId;
     struct in_addr ipaddr;
     u_short port;
+    struct bitfield *pieces;
+    pthread_mutex_t lock ;
     int sockfd ; /* socket attachée à ce client */
 };
 
@@ -151,5 +153,11 @@ int write_socket(int fd,const char *buf,int len);
 /* Lecture simplifiée et vérifiée dans une socket. */
 int readblock(int fd, char* buffer, int len);
 #define assert_read_socket(fd, var, len) assert(-1 != readblock(fd, (char*) var, len));
+
+/* Envoie le champ de bit au pair donné. */
+void send_bitfield(struct beerTorrent *torrent, struct proto_peer *peer);
+
+/* Lecture du bitfield d'un pair sur sa socket associée, message de taille length. */
+void read_bitfield(struct proto_peer *peer, int length);
 
 #endif
