@@ -15,7 +15,7 @@
 void handleNewConnection (int fd, struct sockaddr_in from, int len) {
     struct proto_peer *peer;
     struct proto_client_handshake *hs ;
-    u_int h,peer_id,file_id,tmp ;
+    u_int h,peer_id,file_id,tmp,sock_id ;
     u_char version ;
     len=len;
     read(fd, &version, sizeof(u_char));
@@ -39,10 +39,18 @@ void handleNewConnection (int fd, struct sockaddr_in from, int len) {
     torrent_list[file_id]->peerlist->pentry[torrent_list[file_id]->peerlist->nbPeers] = *peer ;
     assert(++torrent_list[file_id]->peerlist->nbPeers != 0) ;
     pthread_mutex_unlock(&torrent_list[file_id]->peerlist->lock) ;
-        
+    
+    sock_id = get_name(socket_map,(u_int)fd) ;
+    socket_to_file[sock_id] = torrent_list[file_id]->torrent->filehash ;
+    socket_to_peer[sock_id] = peer->peerId ;
+    
+    pthread_mutex_lock(&print_lock) ;
+    green();
+    printf("[Listening thread]\t");    
     blue();
     printf("Receive handshake from %d\n",peer->peerId) ;
     normal() ;
+    pthread_mutex_unlock(&print_lock) ;
 
     /* Ajoute la socket dans la queue handled_request, afin que l'on commence à écouter par la suite. */
     pthread_mutex_lock(&(handled_request->lock)) ;
@@ -54,7 +62,9 @@ void handleNewConnection (int fd, struct sockaddr_in from, int len) {
     hs = construct_handshake(torrent_list[file_id]->torrent) ;
     send_handshake(peer, hs);
     free(hs);
+    pthread_mutex_lock(&print_lock) ;
     printf("Peer %u added successfully (file %s).\n",peer_id,torrent_list[file_id]->torrent->filename) ;
+    pthread_mutex_unlock(&print_lock) ;
     send_bitfield(torrent_list[file_id]->torrent,peer) ;
 }
 
@@ -78,7 +88,9 @@ void start_client() {
     soc_in.sin_port = htons(my_port);
     bind (ss, (struct sockaddr*)&soc_in, sizeof(soc_in));
 
+    pthread_mutex_lock(&print_lock) ;
     printf("Client start accepting incomming connections ...\n");
+    pthread_mutex_unlock(&print_lock) ;
     /* Listen */
     listen (ss, 5);
 
@@ -98,10 +110,12 @@ void start_client() {
 
 int main(int argc, char *argv[]) {
     unsigned int tmp,i,id_arg ;
-    pthread_t watcher ; /*sender[N_THREAD] ; */
+    pthread_t watcher, sender[N_THREAD] ;
     
     file_map = init_map() ; 
     socket_map = init_map() ;
+    
+    assert(pthread_mutex_init(&print_lock, NULL)==0);
     
     nb_files = 0 ;
     
@@ -155,6 +169,12 @@ int main(int argc, char *argv[]) {
     if((pthread_create(&watcher,NULL,watch_sockets,NULL))!=0) {
         perror("pthread_create");
         exit(errno);
+    }
+    for(i = 0 ; i < N_THREAD ; i++) {
+        if((pthread_create(&sender[i],NULL,treat_sockets,(void*)&i))!=0) {
+            perror("pthread_create");
+            exit(errno);
+        }    
     }
     /*************************************************************/
     /* Lancer ici tous les threads pour les échanges de fichiers */

@@ -22,11 +22,16 @@ u_int my_id ;
 /* Port du pair. */
 u_short my_port ;
 
+pthread_mutex_t print_lock ;
+
 /* Renommage des fichiers et des sockets, pour pouvoir s'en servir d'indices dans des tableaux */
 struct map *file_map, *socket_map ;
 
-/* socket_to_file[i] est le hash du fichier associé à la socket renommé en i */
+/* socket_to_file[i] est le hash du fichier associé à la socket renommée en i */
 u_int socket_to_file[N_SOCK] ;
+
+/* socket_to_peer[i] est l'id du pair associé à la socket renommée en i */
+u_int socket_to_peer[N_SOCK] ;
 
 /* Champs de bits des pairs. */
 struct bitfield *peer_bitfield[N_SOCK] ;
@@ -103,5 +108,9 @@ void send_bitfield(struct beerTorrent *torrent, struct proto_peer *peer);
 /* Surveille toutes les sockets référencées. */
 /* Fonction exécutée par un thread. */
 void *watch_sockets(void*) ;
+
+/* Boucle : défile une socket à traiter, lis son message et exécute les actions appropriées. */
+/* Fonction exécutée par un thread. */
+void *treat_sockets(void*) ;
 
 #endif

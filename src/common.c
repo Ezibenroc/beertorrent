@@ -10,6 +10,12 @@
 #include "peerfunc.h"
 #include "rename.h"
 
+#define KEEP_ALIVE 0
+#define HAVE 1
+#define BIT_FIELD 2
+#define REQUEST 3
+#define PIECE 4
+#define CANCEL 5
 
 #define size_id 22
 /* Fonction d'affichage (ID et port). */
@@ -220,6 +226,7 @@ void init_peers_connections(struct torrent_info *ti) {
         else {
             id_sock = get_name(socket_map,(u_int)ti->peerlist->pentry[i].sockfd) ;
             socket_to_file[id_sock] = ti->torrent->filehash ;
+            socket_to_peer[id_sock] = ti->peerlist->pentry[i].peerId ;
             peer_bitfield[id_sock] = createbitfield(ti->torrent->filelength,ti->torrent->piecelength) ; /* bitfield initialisé à 00...0 */
             send_bitfield(ti->torrent,&ti->peerlist->pentry[i]) ;
             i++ ;
@@ -233,9 +240,11 @@ void init_peers_connections(struct torrent_info *ti) {
 void send_bitfield(struct beerTorrent *torrent, struct proto_peer *peer) {
     size_t size = (size_t) 1+torrent->have->arraysize+3*sizeof(u_int) ;
     char m_id = 2 ;
+    pthread_mutex_lock(&print_lock) ;
     cyan() ;
     printf("Send bitfield to %d\n",peer->peerId) ;
     normal() ;
+    pthread_mutex_unlock(&print_lock) ;
     /* Length */
     assert_write_socket(peer->sockfd,&size,sizeof(int)) ;
     /* Message id */
@@ -286,6 +295,13 @@ void *watch_sockets(void *useless) {
         pthread_mutex_unlock(&handled_request->lock) ;
         /* On place dans request toutes les sockets avec un message en attente. */
         if(nb_readable == 0) continue ;
+        pthread_mutex_lock(&print_lock) ;
+        green();
+        printf("[Watching thread]\t");
+        blue();
+        printf("There is %d additional readable socket(s).\n",nb_readable) ;
+        normal();
+        pthread_mutex_unlock(&print_lock) ;
         pthread_mutex_lock(&request->lock) ;
         for(i = 0 ; i < size ; i++) {
             if(socket_set[i].revents != 0) { /* un événement ! */
@@ -303,4 +319,77 @@ void *watch_sockets(void *useless) {
         pthread_mutex_unlock(&request->lock) ;
     }
     return useless;
+}
+
+/* Boucle : défile une socket à traiter, lis son message et exécute les actions appropriées. */
+/* Fonction exécutée par un thread. */
+void *treat_sockets(void* ptr) {
+    int thread_id = *(int*)ptr;
+    int sockfd, message_length, file_hash, peer_id ;
+    char message_id ;
+    u_int s_name, file_name ;
+    
+    while(1) {
+        sockfd = pop(request) ;
+        s_name = get_name(socket_map,(u_int)sockfd) ;
+        file_hash = (int)socket_to_file[s_name] ;
+        peer_id = (int)socket_to_peer[s_name] ;
+        file_name = get_name(file_map,(u_int)file_hash) ;
+        assert_read_socket(sockfd,&message_length,sizeof(int)) ;
+        assert_read_socket(sockfd,&message_id,sizeof(char)) ;
+        pthread_mutex_lock(&print_lock) ;
+        green();
+        printf("[#%d thread]\t",thread_id);
+        normal();
+        switch(message_id) {
+            case KEEP_ALIVE :
+                blue();
+                printf("Received KEEP_ALIVE from peer %d (file %s)\n",peer_id,torrent_list[file_name]->torrent->filename);
+                normal() ;
+                pthread_mutex_unlock(&print_lock) ;
+                printf("\t\t\t\t\t\tNOT YET IMPLEMENTED.\n");
+            break ;
+            case HAVE:
+                blue();
+                printf("Received HAVE from peer %d (file %s)\n",peer_id,torrent_list[file_name]->torrent->filename);
+                normal() ;
+                pthread_mutex_unlock(&print_lock) ;
+                printf("\t\t\t\t\t\tNOT YET IMPLEMENTED.\n");
+            break ;
+            case BIT_FIELD:
+                blue();
+                printf("Received BIT_FIELD from peer %d (file %s)\n",peer_id,torrent_list[file_name]->torrent->filename);
+                normal() ;
+                pthread_mutex_unlock(&print_lock) ;
+                printf("\t\t\t\t\t\tNOT YET IMPLEMENTED.\n");
+            break ;
+            case REQUEST:
+                blue();
+                printf("Received REQUEST from peer %d (file %s)\n",peer_id,torrent_list[file_name]->torrent->filename);
+                normal() ;
+                pthread_mutex_unlock(&print_lock) ;
+                printf("\t\t\t\t\t\tNOT YET IMPLEMENTED.\n");
+            break ;
+            case PIECE:
+                blue();
+                printf("Received PIECE from peer %d (file %s)\n",peer_id,torrent_list[file_name]->torrent->filename);
+                normal() ;
+                pthread_mutex_unlock(&print_lock) ;
+                printf("\t\t\t\t\t\tNOT YET IMPLEMENTED.\n");
+            break ;
+            case CANCEL:
+                blue();
+                printf("Received CANCEL from peer %d (file %s)\n",peer_id,torrent_list[file_name]->torrent->filename);
+                normal() ;
+                pthread_mutex_unlock(&print_lock) ;
+                printf("\t\t\t\t\t\tNOT YET IMPLEMENTED.\n");
+            break ;
+            default :
+                printf("Error, unknown message (id %d).\n",(int)message_id) ;
+                exit(EXIT_FAILURE) ;
+            break;
+        }
+    }
+    
+    return ptr;
 }
