@@ -131,6 +131,106 @@ void init_cancel() {
     }
 }
 
+
+/* Choisis un pair et une pièce pour la prochaîne requête, pour le fichier donné. */
+/* Renvois 1 en cas de succés, 0 en cas d'échec (piece_id et peer ne sont alors pas modifiés). */
+/* Pré-condition : fichier non complet. */
+int choose_piece_peer_for_file(u_int *piece_id, struct proto_peer **peer, struct torrent_info *bt)  {
+    u_int piece = (u_int)bt->torrent->last_downloaded_piece ;
+    int flag, npeer, ipeer ;
+    int ntry, itry ;
+    /* Recherche de la pièce (déterministe). */
+    while(true) {
+        if(piece >= (bt->torrent->filelength/bt->torrent->piecelength+1)) /* pré-condition non respectée */
+            assert(false);
+        pthread_mutex_lock(&bt->torrent->request_lock) ;
+        flag = isinbitfield(bt->torrent->request,piece) ;
+        pthread_mutex_unlock(&bt->torrent->request_lock) ;
+        pthread_mutex_lock(&bt->torrent->have_lock) ;
+        flag = flag||isinbitfield(bt->torrent->have,piece) ;
+        pthread_mutex_unlock(&bt->torrent->have_lock) ;
+        if(!flag) /* on a trouvé la prochaine pièce */
+            break ;
+        piece++ ;
+    }
+    /* Recherche du pair (non déterministe). */
+    pthread_mutex_lock(&bt->peerlist->lock) ;
+    npeer = bt->peerlist->nbPeers ;
+    pthread_mutex_unlock(&bt->peerlist->lock) ;
+    if(npeer == 0)
+        return 0 ;
+    ntry = npeer ; /* nombre d'essais random */
+    flag = 0 ;
+    for(itry = 0 ; itry < ntry ; itry++) {
+        ipeer = rand()%npeer ;
+        pthread_mutex_lock(&bt->peerlist->pentry[ipeer].lock) ;
+        if(isinbitfield(bt->peerlist->pentry[ipeer].pieces,piece)) /* trouvé un pair */
+            flag = 1 ;
+        pthread_mutex_unlock(&bt->peerlist->pentry[ipeer].lock) ;
+        if(flag)
+            break ;
+    }
+    if(flag) { /* trouvé un pair */
+        *piece_id = piece ;
+        *peer = &bt->peerlist->pentry[ipeer] ;
+        return 1 ;
+    }
+    /* Recherche du pair (non déterministe) */
+    flag = 0 ;
+    for(ipeer = 0 ; ipeer < npeer ; ipeer++) {
+        pthread_mutex_lock(&bt->peerlist->pentry[ipeer].lock) ;
+        if(isinbitfield(bt->peerlist->pentry[ipeer].pieces,piece)) /* trouvé un pair */
+            flag = 1 ;
+        pthread_mutex_unlock(&bt->peerlist->pentry[ipeer].lock) ;
+        if(flag)
+            break ;    
+    }
+    if(flag) { /* trouvé un pair */
+        *piece_id = piece ;
+        *peer = &bt->peerlist->pentry[ipeer] ;
+        return 1 ;
+    }
+    else /* pas de pair */
+        return 0 ;
+}
+
+/* Choisis un fichier, puis une pièce et un pair, pour la prochaine requête. */
+/* Endore le thread si rien n'est trouvé. */
+/* Pré-condition : il existe un fichier incomplet. */
+void choose_piece_peer(u_int *piece_id, struct proto_peer **peer, int thread_id) {
+    int itry, ntry = (int)nb_files ;
+    u_int file_id ;
+    u_int time_sleep = 1 ;
+    while(1) {
+        for(itry = 0 ; itry < ntry ; itry++) {
+            file_id = (u_int)rand()%nb_files ;
+            if(!torrent_list[file_id]->torrent->download_ended && choose_piece_peer_for_file(piece_id,peer,torrent_list[file_id]))
+                break ;
+        }
+        if(itry < ntry) /* trouvé ! */
+            break ;
+        else { /* Non trouvé, on fait une recherche exhaustive */
+            for(file_id = 0 ; file_id < nb_files ; file_id++) {
+                if(!torrent_list[file_id]->torrent->download_ended && choose_piece_peer_for_file(piece_id,peer,torrent_list[file_id]))
+                    break ;            
+            }
+            if(file_id < nb_files) /* trouvé */
+                break ;
+            else {
+                pthread_mutex_lock(&print_lock) ;
+                green();
+                printf("[#%d thread]\t",thread_id);
+                normal() ;
+                printf("Did not find a piece to request. Sleep for %u second(s).\n",time_sleep);
+                pthread_mutex_unlock(&print_lock) ;            
+                sleep(time_sleep) ;
+                time_sleep = max(60,time_sleep*2) ; /* sleep exponentiel jusqu'à la borne */
+            }
+        }
+    }
+}
+
+
 /* Construit un handshake correspondant au torrent donné. */
 struct proto_client_handshake* construct_handshake(struct beerTorrent *torrent) {
     struct proto_client_handshake* hs ;
@@ -233,7 +333,7 @@ void init_peers_connections(struct torrent_info *ti) {
             ti->peerlist->pentry[i].pieces = createbitfield(ti->torrent->filelength,ti->torrent->piecelength) ; /* bitfield initialisé à 00...0 */
             pthread_mutex_unlock(&ti->peerlist->pentry[i].lock) ;
             if(ti->torrent->have->nbpiece >0) /* pas la peine d'envoyer le bitfield si on n'a pas de pieces */
-                send_bitfield(&ti->peerlist->pentry[i],ti->torrent) ;
+                send_bitfield(&ti->peerlist->pentry[i],ti->torrent,-2) ;
             i++ ;
         }
     }
@@ -314,6 +414,9 @@ void *treat_sockets(void* ptr) {
     char message_id ;
     u_int s_name, file_name ;
     
+    /* Buffer d'entrées sortie alloué une seule fois. */
+    char *io_buff = (char*) malloc(max_piecelength*sizeof(char)) ;
+    
     while(1) {
         sockfd = pop(request) ;
         s_name = get_name(socket_map,(u_int)sockfd) ;
@@ -322,45 +425,30 @@ void *treat_sockets(void* ptr) {
         file_name = get_name(file_map,(u_int)file_hash) ;
         assert_read_socket(sockfd,&message_length,sizeof(int)) ;
         assert_read_socket(sockfd,&message_id,sizeof(char)) ;
-        pthread_mutex_lock(&print_lock) ;
-        green();
-        printf("[#%d thread]\t",thread_id);
-        normal();
+        printf("DONT'T FORGET TO PUT SOCKET IN HANDLED_REQUEST\n");
         switch(message_id) {
             case KEEP_ALIVE :
                 blue();
                 printf("Received KEEP_ALIVE from peer %d (file %s)\n",peer_id,torrent_list[file_name]->torrent->filename);
                 normal() ;
-                pthread_mutex_unlock(&print_lock) ;
                 printf("\t\t\t\t\t\tNOT YET IMPLEMENTED.\n");
             break ;
             case HAVE:
-                pthread_mutex_unlock(&print_lock) ;
-                read_have(peers[s_name],torrent_list[file_name]->torrent);
+                read_have(peers[s_name],torrent_list[file_name]->torrent,thread_id);
             break ;
             case BIT_FIELD:
-                pthread_mutex_unlock(&print_lock) ;
-                read_bitfield(peers[s_name],torrent_list[file_name]->torrent,message_length);
+                read_bitfield(peers[s_name],torrent_list[file_name]->torrent,message_length,thread_id);
             break ;
             case REQUEST:
-                blue();
-                printf("Received REQUEST from peer %d (file %s)\n",peer_id,torrent_list[file_name]->torrent->filename);
-                normal() ;
-                pthread_mutex_unlock(&print_lock) ;
-                printf("\t\t\t\t\t\tNOT YET IMPLEMENTED.\n");
+                read_request(peers[s_name],torrent_list[file_name]->torrent,io_buff,thread_id);
             break ;
             case PIECE:
-                blue();
-                printf("Received PIECE from peer %d (file %s)\n",peer_id,torrent_list[file_name]->torrent->filename);
-                normal() ;
-                pthread_mutex_unlock(&print_lock) ;
-                printf("\t\t\t\t\t\tNOT YET IMPLEMENTED.\n");
+                read_piece(peers[s_name],torrent_list[file_name]->torrent,torrent_list[file_name]->peerlist,message_length,io_buff,thread_id) ;
             break ;
             case CANCEL:
                 blue();
                 printf("Received CANCEL from peer %d (file %s)\n",peer_id,torrent_list[file_name]->torrent->filename);
                 normal() ;
-                pthread_mutex_unlock(&print_lock) ;
                 printf("\t\t\t\t\t\tNOT YET IMPLEMENTED.\n");
             break ;
             default :

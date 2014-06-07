@@ -23,6 +23,9 @@
 #define PORTTRACKER 3955
 #define MAXNAMELENGTH 128
 
+/* Taille maximale d'une pièce (tout fichiers confondus). */
+size_t max_piecelength ;
+
 /* Requête pour le tracker. */
 struct proto_tracker_clientrequest {
     u_int fileHash;
@@ -113,11 +116,12 @@ struct beerTorrent {
     struct bitfield * request;      /* champ de bits représentant les pièces pour lesquels on a émis une requête */
     pthread_mutex_t request_lock;   /* mutex pour R/W sur ce champ */
     bool download_ended;            /* téléchargement terminé ou non */
-    int last_downloaded_piece ;   /* indice de la dernière pièce téléchargée (téléchargées dans l'ordre croissant) */
+    int last_downloaded_piece ;     /* indice de la dernière pièce téléchargée (téléchargées dans l'ordre croissant) */
 };
 
 /* Torrent et ses pairs. */
 struct torrent_info {
+    int nb_files ;
     struct beerTorrent *torrent;
     struct proto_tracker_peerlist *peerlist;
 };
@@ -156,27 +160,27 @@ int read_socket(int fd, char* buffer, int len);
 
 
 /* Envoie du message bitfield au pair donné. */
-void send_bitfield(struct proto_peer *peer, struct beerTorrent *torrent);
+void send_bitfield(struct proto_peer *peer, struct beerTorrent *torrent, int thread_id);
 
 /* Reception du message bitfield du pair donné. */
-void read_bitfield(struct proto_peer *peer, struct beerTorrent *torrent, int length);
+void read_bitfield(struct proto_peer *peer, struct beerTorrent *torrent, int length, int thread_id);
 
 /* Envoie du message have au pair donné. */
-void send_have(struct proto_peer *peer, struct beerTorrent *torrent, int piece_id);
+void send_have(struct proto_peer *peer, struct beerTorrent *torrent, int piece_id, int thread_id);
 
 /* Reception du message have du pair donné. */
-void read_have(struct proto_peer *peer, struct beerTorrent *torrent);
+void read_have(struct proto_peer *peer, struct beerTorrent *torrent, int thread_id);
 
 /* Envoie du message request au pair donné. */
-void send_request(struct proto_peer *peer, struct beerTorrent *torrent, u_int piece_id, u_int block_offset, u_int block_length);
+void send_request(struct proto_peer *peer, struct beerTorrent *torrent, u_int piece_id, u_int block_offset, u_int block_length, int thread_id);
 
 /* Reception du message request du pair donné. */
-void read_request(struct proto_peer *peer, struct beerTorrent *torrent);
+void read_request(struct proto_peer *peer, struct beerTorrent *torrent, char *buff, int thread_id);
 
 /* Envoie du message piece au pair donné. */
-void send_piece(struct proto_peer *peer, struct beerTorrent *torrent, u_int piece_id, u_int block_offset, u_int block_length);
+void send_piece(struct proto_peer *peer, struct beerTorrent *torrent, u_int piece_id, u_int block_offset, u_int block_length, char *buff, int thread_id);
 
 /* Reception du message piece du pair donné. */
-void read_piece(struct proto_peer *peer, struct beerTorrent *torrent);
+void read_piece(struct proto_peer *peer, struct beerTorrent *torrent, struct proto_tracker_peerlist *peerlist, int length, char *buff, int thread_id);
 
 #endif

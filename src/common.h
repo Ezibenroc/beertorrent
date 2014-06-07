@@ -41,6 +41,8 @@ struct proto_peer *peers[N_SOCK] ;
 
 /* Tableau des torrent_list (et infos associées) */
 struct torrent_info **torrent_list ;
+/* Nombre de torrents */
+unsigned int nb_files ;
 
 /* FIFO de socket. */
 /* Un thread repère les sockets ayant un message et les place dans la file request. */
@@ -69,9 +71,6 @@ struct non_waiting_queue *init_non_waiting_queue() ;
 /* Retourne la tête de la file (appel bloquant si file vide). */
 int pop(struct waiting_queue *q) ;
 
-/* Nombre de torrents */
-unsigned int nb_files ;
-
 /* Fonction d'affichage (ID et port). */
 void print_id() ;
 
@@ -93,6 +92,16 @@ struct cancel_entry {
 
 /* Initialisation du tableau cancel. */
 void init_cancel() ;
+
+/* Choisis un pair et une pièce pour la prochaîne requête, pour le fichier donné. */
+/* Renvois 1 en cas de succés, 0 en cas d'échec (piece_id et peer ne sont alors pas modifiés). */
+/* Pré-condition : fichier non complet. */
+int choose_piece_peer_for_file(u_int *piece_id, struct proto_peer **peer, struct torrent_info *bt) ;
+
+/* Choisis un fichier, puis une pièce et un pair, pour la prochaine requête. */
+/* Endore le thread si rien n'est trouvé. */
+/* Pré-condition : il existe un fichier incomplet. */
+void choose_piece_peer(u_int *piece_id, struct proto_peer **peer, int thread_id) ;
 
 
 /* Construit un handshake correspondant au torrent donné. */
