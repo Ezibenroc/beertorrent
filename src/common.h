@@ -16,6 +16,7 @@
 
 #define N_SOCK 1024
 #define N_THREAD 4
+#define N_REQUESTS 10
 
 #define pthread_mutex_lock(x) assert(!pthread_mutex_lock(x))
 #define pthread_mutex_unlock(x) assert(!pthread_mutex_unlock(x))
@@ -43,6 +44,7 @@ struct proto_peer *peers[N_SOCK] ;
 struct torrent_info **torrent_list ;
 /* Nombre de torrents */
 unsigned int nb_files ;
+unsigned int nb_files_to_download ;
 
 /* FIFO de socket. */
 /* Un thread repère les sockets ayant un message et les place dans la file request. */
@@ -99,10 +101,10 @@ void init_cancel() ;
 int choose_piece_peer_for_file(u_int *piece_id, struct proto_peer **peer, struct torrent_info *bt) ;
 
 /* Choisis un fichier, puis une pièce et un pair, pour la prochaine requête. */
-/* Endore le thread si rien n'est trouvé. */
+/* Endore le thread si rien n'est trouvé et si blocking vaut 1. */
+/* Renvoie 1 ssi un choix a pu être fait (si blocking vaut 1, renvoie toujours 1). */
 /* Pré-condition : il existe un fichier incomplet. */
-void choose_piece_peer(u_int *piece_id, struct proto_peer **peer, int thread_id) ;
-
+int choose_piece_peer(u_int *piece_id, struct proto_peer **peer, struct beerTorrent **torrent, int thread_id, int blocking) ;
 
 /* Construit un handshake correspondant au torrent donné. */
 struct proto_client_handshake* construct_handshake(struct beerTorrent *torrent);
@@ -113,6 +115,10 @@ void send_handshake(const struct proto_peer *peer, const struct proto_client_han
 /* Initialise la connection de tous les pairs (création des sockets, réalisation des handshakes, envoi des bitfields). */
 /* Remplis la table de sockets, et le tableau faisant la correspondance entre sockets et fichiers. */
 void init_peers_connections(struct torrent_info *ti);
+
+/* Envoie des premières requêtes. */
+/* Pré-condition : nombre de fichiers à télécharger non nul. 
+void send_first_requests() ;*/
 
 /* Surveille toutes les sockets référencées. */
 /* Fonction exécutée par un thread. */

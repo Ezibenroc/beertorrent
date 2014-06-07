@@ -168,8 +168,6 @@ void setbitinfield(struct bitfield * bf, u_int id) {
     bf->array[id/8] |= (u_char)(0x1 << (id%8));
 }
 
-char zero_buf[1024] = {0} ;
-
 /* Initialise un torrent à partir du fichier beertorrent donné. */
 struct beerTorrent * addtorrent(char * filename) {
 
@@ -178,10 +176,12 @@ struct beerTorrent * addtorrent(char * filename) {
     size_t len = 0;
     size_t ln;
     u_int nb_it ;
+    char *zero_buf ;
     
     struct beerTorrent * bt = malloc(sizeof(struct beerTorrent));
-
     assert(bt);
+    zero_buf = malloc(1024);assert(zero_buf);
+    memset(zero_buf,0,1024);
 
     fp = fopen(filename, "r");
     if (fp == NULL) {
@@ -233,7 +233,7 @@ struct beerTorrent * addtorrent(char * filename) {
 
         if(!(bt->fp = fopen(bt->filename, "rb"))) {
 
-            perror("fopen file");
+            perror("fopen");
             deletebitfield(bt->have);
             deletebitfield(bt->request);
             free(bt);
@@ -254,7 +254,7 @@ struct beerTorrent * addtorrent(char * filename) {
         /* file doesn't exist*/
         if(!(bt->fp = fopen(bt->filename, "w+b"))) {
 
-            perror("fopen file");
+            perror("fopen");
             deletebitfield(bt->have);
             deletebitfield(bt->request);
             free(bt);
@@ -266,7 +266,7 @@ struct beerTorrent * addtorrent(char * filename) {
         /* Remplissage du fichier avec des zeros. */
         nb_it = bt->filelength/1024 ;
         while(nb_it != 0)
-            nb_it-=(u_int)fwrite(zero_buf,1024,nb_it,bt->fp);
+            nb_it-=(u_int)fwrite(zero_buf,1024,1,bt->fp);
         assert(1==fwrite(zero_buf,bt->filelength%1024,1,bt->fp));
         assert(!fflush(bt->fp));
         
@@ -328,7 +328,7 @@ void send_bitfield(struct proto_peer *peer, struct beerTorrent *torrent, int thr
     else    
         printf("[#%d thread]\t",thread_id);
     cyan() ;
-    printf("Send BIT_FIELD to peer %d (file %s)\n",peer->peerId,torrent->filename);
+    printf("Send BIT_FIELD to peer %d (file %s).\n",peer->peerId,torrent->filename);
     normal() ;
     pthread_mutex_unlock(&print_lock) ;
     /* Length */
@@ -348,6 +348,10 @@ void send_bitfield(struct proto_peer *peer, struct beerTorrent *torrent, int thr
 /* Reception du message bitfield du pair donné. */
 void read_bitfield(struct proto_peer *peer, struct beerTorrent *torrent, int length, int thread_id) {
     u_int i ;
+    int flag = 0 ;
+    u_int new_piece ;
+    struct proto_peer *new_peer ;
+    struct beerTorrent *new_torrent ;
     pthread_mutex_lock(&peer->lock) ;
     assert_read_socket(peer->sockfd,peer->pieces->array,length-1-2*(int)sizeof(u_int)) ;
     assert_read_socket(peer->sockfd,&peer->pieces->arraysize,sizeof(u_int)) ;
@@ -362,9 +366,21 @@ void read_bitfield(struct proto_peer *peer, struct beerTorrent *torrent, int len
     green();
     printf("[#%d thread]\t",thread_id);
     blue();
-    printf("Received BIT_FIELD from peer %d (file %s)\n",peer->peerId,torrent->filename);
+    printf("Received BIT_FIELD from peer %d (file %s).\n",peer->peerId,torrent->filename);
     normal() ;
+    flag = (nb_files_to_download>0) ; /* protégé par le mutex d'affichage, évite d'utiliser un n-ième mutex */
     pthread_mutex_unlock(&print_lock) ;
+    if(flag) {
+        for(i = 0 ; i < 3 ; i++) {
+            if(!choose_piece_peer(&new_piece, &new_peer, &new_torrent, thread_id,0))
+                break ; /* non bloquant */
+            if(new_piece <= new_torrent->filelength/new_torrent->piecelength) /* pièce entière */
+                send_request(new_peer, new_torrent, new_piece, 0, new_torrent->piecelength, thread_id) ; 
+            else if(new_torrent->filelength%new_torrent->piecelength!=0)
+                send_request(new_peer, new_torrent, new_piece, 0, new_torrent->filelength%new_torrent->piecelength, thread_id) ;    
+         
+        }    
+    }
 }
 
 /* Envoie du message have au pair donné. */
@@ -375,7 +391,7 @@ void send_have(struct proto_peer *peer, struct beerTorrent *torrent, int piece_i
     green();
     printf("[#%d thread]\t",thread_id);
     cyan() ;
-    printf("Send HAVE(%d) to peer %d (file %s)\n",piece_id,peer->peerId,torrent->filename);
+    printf("Send HAVE(%d) to peer %d (file %s).\n",piece_id,peer->peerId,torrent->filename);
     normal() ;
     pthread_mutex_unlock(&print_lock) ;
     assert_write_socket(peer->sockfd,&size,sizeof(int)) ;    
@@ -394,7 +410,7 @@ void read_have(struct proto_peer *peer, struct beerTorrent *torrent, int thread_
     green();
     printf("[#%d thread]\t",thread_id);
     blue();
-    printf("Received HAVE(%u) from peer %d (file %s)\n",piece_id,peer->peerId,torrent->filename);
+    printf("Received HAVE(%u) from peer %d (file %s).\n",piece_id,peer->peerId,torrent->filename);
     normal() ;
     pthread_mutex_unlock(&print_lock) ;
 }
@@ -407,7 +423,7 @@ void send_request(struct proto_peer *peer, struct beerTorrent *torrent, u_int pi
     green();
     printf("[#%d thread]\t",thread_id);
     cyan() ;
-    printf("Send REQUEST(%u,%u,%u) to peer %d (file %s)\n",piece_id,block_offset,block_length,peer->peerId,torrent->filename) ;
+    printf("Send REQUEST(%u,%u,%u) to peer %d (file %s).\n",piece_id,block_offset,block_length,peer->peerId,torrent->filename) ;
     normal() ;
     pthread_mutex_unlock(&print_lock) ;
     pthread_mutex_lock(&torrent->request_lock);
@@ -434,7 +450,7 @@ void read_request(struct proto_peer *peer, struct beerTorrent *torrent, char *bu
     green();
     printf("[#%d thread]\t",thread_id);
     blue() ;
-    printf("Received REQUEST(%u,%u,%u) from peer %d (file %s)\n",piece_id,block_offset,block_length,peer->peerId,torrent->filename);
+    printf("Received REQUEST(%u,%u,%u) from peer %d (file %s).\n",piece_id,block_offset,block_length,peer->peerId,torrent->filename);
     normal() ;
     pthread_mutex_unlock(&print_lock) ;
     send_piece(peer,torrent,piece_id,block_offset,block_length,buff,thread_id);
@@ -450,7 +466,7 @@ void send_piece(struct proto_peer *peer, struct beerTorrent *torrent, u_int piec
     green();
     printf("[#%d thread]\t",thread_id);
     cyan() ;
-    printf("Send PIECE(%u,%u) to peer %d (file %s)\n",piece_id,block_offset,peer->peerId,torrent->filename) ;
+    printf("Send PIECE(%u,%u) to peer %d (file %s).\n",piece_id,block_offset,peer->peerId,torrent->filename) ;
     normal() ;
     pthread_mutex_unlock(&print_lock) ;
     pthread_mutex_lock(&torrent->have_lock);
@@ -469,6 +485,10 @@ void send_piece(struct proto_peer *peer, struct beerTorrent *torrent, u_int piec
 void read_piece(struct proto_peer *peer, struct beerTorrent *torrent, struct proto_tracker_peerlist *peerlist, int length, char *buff, int thread_id) {
     u_int piece_id, block_offset ;
     int block_length,i,size_list ;
+    int flag ;
+    u_int new_piece ;
+    struct proto_peer *new_peer ;
+    struct beerTorrent *new_torrent ;
     assert_read_socket(peer->sockfd,&piece_id,sizeof(u_int)) ;
     assert_read_socket(peer->sockfd,&block_offset,sizeof(u_int)) ;
     block_length = length-9 ;
@@ -477,7 +497,7 @@ void read_piece(struct proto_peer *peer, struct beerTorrent *torrent, struct pro
     green();
     printf("[#%d thread]\t",thread_id);
     blue() ;
-    printf("Received PIECE(%u,%u) from peer %d (file %s)\n",piece_id,block_offset,peer->peerId,torrent->filename);
+    printf("Received PIECE(%u,%u) from peer %d (file %s).\n",piece_id,block_offset,peer->peerId,torrent->filename);
     normal() ;
     pthread_mutex_unlock(&print_lock) ;
     assert_read_socket(peer->sockfd,buff,block_length);
@@ -491,7 +511,21 @@ void read_piece(struct proto_peer *peer, struct beerTorrent *torrent, struct pro
     pthread_mutex_unlock(&torrent->request_lock);
     pthread_mutex_lock(&torrent->have_lock);
     setbitinfield(torrent->have,piece_id) ;
+    if(torrent->have->nbpiece == torrent->have->totalpiece) {/* téléchargement terminé */
+        torrent->download_ended = 1 ;
+    }
     pthread_mutex_unlock(&torrent->have_lock);
+    if(torrent->download_ended) {
+        pthread_mutex_lock(&print_lock) ;
+        nb_files_to_download -- ; /* protégé par le mutex d'affichage, évite d'utiliser un n-ième mutex */
+        if(nb_files_to_download > 0) 
+            flag = 0 ;
+        green();
+        printf("[#%d thread]\t",thread_id);
+        normal() ;
+        printf("Terminated download of file %s.\n",torrent->filename);
+        pthread_mutex_unlock(&print_lock) ;
+    }    
     /* Envoie de have à tous les pairs. */
     pthread_mutex_lock(&peerlist->lock) ;
     size_list = peerlist->nbPeers ;
@@ -499,5 +533,12 @@ void read_piece(struct proto_peer *peer, struct beerTorrent *torrent, struct pro
     for(i = 0 ; i < size_list ; i++) { /* cette partie de la liste ne sera pas modifiée en écriture, pas besoin de mutex */
         send_have(&peerlist->pentry[i], torrent, (int)piece_id, thread_id) ;     
     }
-    /* Envoie d'une requête. */
+    /* Envoie éventuel d'une requête (s'il reste des fichiers à télécharger). */
+    if(flag) {
+        choose_piece_peer(&new_piece, &new_peer, &new_torrent, thread_id,1) ; /* bloquant */
+        if(new_piece <= new_torrent->filelength/new_torrent->piecelength) /* pièce entière */
+            send_request(new_peer, new_torrent, new_piece, 0, new_torrent->piecelength, thread_id) ; 
+        else if(new_torrent->filelength%new_torrent->piecelength!=0)
+            send_request(new_peer, new_torrent, new_piece, 0, new_torrent->filelength%new_torrent->piecelength, thread_id) ;             
+    }
 }

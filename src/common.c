@@ -18,6 +18,7 @@
 #define CANCEL 5
 
 #define size_id 22
+
 /* Fonction d'affichage (ID et port). */
 void print_id() {
     char s[size_id] ;
@@ -115,6 +116,7 @@ int pop(struct waiting_queue *q) {
     int tmp ;
     sem_wait(&(q->full)) ;
     pthread_mutex_lock(&q->lock) ;
+    assert(q->first != q->last);
     tmp = q->queue[q->first] ;
     q->first = (q->first+1)%N_SOCK ;
     pthread_mutex_unlock(&q->lock) ;  
@@ -141,8 +143,8 @@ int choose_piece_peer_for_file(u_int *piece_id, struct proto_peer **peer, struct
     int ntry, itry ;
     /* Recherche de la pièce (déterministe). */
     while(true) {
-        if(piece >= (bt->torrent->filelength/bt->torrent->piecelength+1)) /* pré-condition non respectée */
-            assert(false);
+        if(piece >= (bt->torrent->filelength/bt->torrent->piecelength+1)) /* pas de pièce à demander */
+            return 0 ;
         pthread_mutex_lock(&bt->torrent->request_lock) ;
         flag = isinbitfield(bt->torrent->request,piece) ;
         pthread_mutex_unlock(&bt->torrent->request_lock) ;
@@ -197,25 +199,31 @@ int choose_piece_peer_for_file(u_int *piece_id, struct proto_peer **peer, struct
 /* Choisis un fichier, puis une pièce et un pair, pour la prochaine requête. */
 /* Endore le thread si rien n'est trouvé. */
 /* Pré-condition : il existe un fichier incomplet. */
-void choose_piece_peer(u_int *piece_id, struct proto_peer **peer, int thread_id) {
+int choose_piece_peer(u_int *piece_id, struct proto_peer **peer, struct beerTorrent **torrent, int thread_id, int blocking) {
     int itry, ntry = (int)nb_files ;
     u_int file_id ;
     u_int time_sleep = 1 ;
     while(1) {
         for(itry = 0 ; itry < ntry ; itry++) {
             file_id = (u_int)rand()%nb_files ;
-            if(!torrent_list[file_id]->torrent->download_ended && choose_piece_peer_for_file(piece_id,peer,torrent_list[file_id]))
+            if(!torrent_list[file_id]->torrent->download_ended && choose_piece_peer_for_file(piece_id,peer,torrent_list[file_id])) {
+                *torrent = torrent_list[file_id]->torrent ;
                 break ;
+            }
         }
         if(itry < ntry) /* trouvé ! */
-            break ;
+            return 1 ;
         else { /* Non trouvé, on fait une recherche exhaustive */
             for(file_id = 0 ; file_id < nb_files ; file_id++) {
-                if(!torrent_list[file_id]->torrent->download_ended && choose_piece_peer_for_file(piece_id,peer,torrent_list[file_id]))
-                    break ;            
+                if(!torrent_list[file_id]->torrent->download_ended && choose_piece_peer_for_file(piece_id,peer,torrent_list[file_id])) {
+                    break ;
+                    *torrent = torrent_list[file_id]->torrent ;
+                }            
             }
             if(file_id < nb_files) /* trouvé */
-                break ;
+                return 1 ;
+            else if(!blocking)
+                return 0 ;
             else {
                 pthread_mutex_lock(&print_lock) ;
                 green();
@@ -314,7 +322,8 @@ void init_peers_connections(struct torrent_info *ti) {
     struct proto_client_handshake* hs = construct_handshake(ti->torrent) ;
     
     int i,j ;
-    u_int id_sock ;
+    u_int id_sock ; 
+
     /* Parcours des pairs */
     i=0 ;
     while(i < ti->peerlist->nbPeers) {
@@ -339,7 +348,30 @@ void init_peers_connections(struct torrent_info *ti) {
     }
     free(hs);
 }
-
+/*
+void send_first_requests() {
+    u_int new_piece ;
+    struct proto_peer *new_peer ;
+    struct beerTorrent *new_torrent ; 
+    u_int max_request,i ;  
+   //  Calcul du nombre de requêtes. 
+    max_request = 0 ;
+    for(i = 0 ; i < nb_files ; i++) {
+        if(!torrent_list[i]->torrent->download_ended)
+            max_request += torrent_list[i]->torrent->filelength/torrent_list[i]->torrent->piecelength + (torrent_list[i]->torrent->filelength%torrent_list[i]->torrent->piecelength!=0) ;
+        if(max_request >= N_REQUESTS) {
+            max_request = N_REQUESTS ;
+            break ;
+        }
+    }
+    for(i = 0 ; i < max_request ; i++) {
+        choose_piece_peer(&new_piece, &new_peer, &new_torrent, -1) ;
+        if(new_piece <= new_torrent->filelength/new_torrent->piecelength)//  pièce entière 
+            send_request(new_peer, new_torrent, new_piece, 0, new_torrent->piecelength, -1) ; 
+        else if(new_torrent->filelength%new_torrent->piecelength!=0)
+            send_request(new_peer, new_torrent, new_piece, 0, new_torrent->filelength%new_torrent->piecelength, -1) ;
+    }
+}*/
 
 
 /* Surveille toutes les sockets référencées. */
@@ -425,7 +457,6 @@ void *treat_sockets(void* ptr) {
         file_name = get_name(file_map,(u_int)file_hash) ;
         assert_read_socket(sockfd,&message_length,sizeof(int)) ;
         assert_read_socket(sockfd,&message_id,sizeof(char)) ;
-        printf("DONT'T FORGET TO PUT SOCKET IN HANDLED_REQUEST\n");
         switch(message_id) {
             case KEEP_ALIVE :
                 blue();
@@ -459,7 +490,12 @@ void *treat_sockets(void* ptr) {
                 exit(EXIT_FAILURE) ;
             break;
         }
+        pthread_mutex_lock(&handled_request->lock) ;
+        handled_request->queue[handled_request->last] = sockfd ;
+        handled_request->last = (handled_request->last+1)%N_SOCK ;
+        pthread_mutex_unlock(&handled_request->lock) ;
     }
+    
     
     return ptr;
 }

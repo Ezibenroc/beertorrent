@@ -122,6 +122,7 @@ int main(int argc, char *argv[]) {
     assert(pthread_mutex_init(&print_lock, NULL)==0);
     
     nb_files = 0 ;
+    nb_files_to_download = 0 ;
     max_piecelength = 0 ;
     
     /* Génération de l'ID et du port */
@@ -148,6 +149,8 @@ int main(int argc, char *argv[]) {
         if(tmp==i) { /* fichier pas encore référencé... sinon on a un doublon */
             torrent_list[i]->peerlist = gettrackerinfos(torrent_list[i]->torrent, my_id, my_port);
             assert(torrent_list[i]->peerlist) ;
+            if(!torrent_list[i]->torrent->download_ended)
+                nb_files_to_download++ ;
             i++ ;
         }
         else {
@@ -166,6 +169,7 @@ int main(int argc, char *argv[]) {
     
     /* Initialisation du tableau répertoriant les requêtes "cancel". */
     init_cancel() ;
+    
     
     /* Initialisation des connections (création des sockets, handshake) */
     for(i=0 ; i < nb_files ; i++)
