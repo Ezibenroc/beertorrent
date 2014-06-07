@@ -168,6 +168,8 @@ void setbitinfield(struct bitfield * bf, u_int id) {
     bf->array[id/8] |= (u_char)(0x1 << (id%8));
 }
 
+char zero_buf[1024] = {0} ;
+
 /* Initialise un torrent à partir du fichier beertorrent donné. */
 struct beerTorrent * addtorrent(char * filename) {
 
@@ -175,6 +177,7 @@ struct beerTorrent * addtorrent(char * filename) {
     char *line = NULL;
     size_t len = 0;
     size_t ln;
+    u_int nb_it ;
     
     struct beerTorrent * bt = malloc(sizeof(struct beerTorrent));
 
@@ -259,6 +262,12 @@ struct beerTorrent * addtorrent(char * filename) {
         printf("%s has to be downloaded.\n", bt->filename);
         bt->download_ended = false;
         bt->last_downloaded_piece = -1 ;
+        nb_it = bt->filelength/1024 ;
+        while(nb_it != 0)
+            nb_it-=(u_int)fwrite(zero_buf,1024,nb_it,bt->fp);
+        assert(1==fwrite(zero_buf,bt->filelength%1024,1,bt->fp));
+        assert(!fflush(bt->fp));
+        
     }
 
     printf("%s added\n", filename);
@@ -290,7 +299,7 @@ int write_socket(int fd,const char *buf,int len) {
 }
 
 /* Lecture simplifiée et vérifiée dans une socket. */
-int readblock(int fd, char* buffer, int len) {
+int read_socket(int fd, char* buffer, int len) {
     int ret  = 0;
     int count = 0;
     while (count < len) {
@@ -304,13 +313,13 @@ int readblock(int fd, char* buffer, int len) {
 }
 
 
-/* Envoie le champ de bit au pair donné. */
-void send_bitfield(struct beerTorrent *torrent, struct proto_peer *peer) {
+/* Envoie du message bitfield au pair donné. */
+void send_bitfield(struct proto_peer *peer, struct beerTorrent *torrent) {
     size_t size = (size_t) 1+torrent->have->arraysize+2*sizeof(u_int) ;
     char m_id = 2 ;
     pthread_mutex_lock(&print_lock) ;
     cyan() ;
-    printf("Send bitfield to %d\n",peer->peerId) ;
+    printf("Send BIT_FIELD to peer %d (file %s)\n",peer->peerId,torrent->filename);
     normal() ;
     pthread_mutex_unlock(&print_lock) ;
     /* Length */
@@ -327,8 +336,8 @@ void send_bitfield(struct beerTorrent *torrent, struct proto_peer *peer) {
        Le récepteur aura à le recalculer. */
 }
 
-/* Lecture du bitfield d'un pair sur sa socket associée, message de taille length. */
-void read_bitfield(struct proto_peer *peer, int length) {
+/* Reception du message bitfield du pair donné. */
+void read_bitfield(struct proto_peer *peer, struct beerTorrent *torrent, int length) {
     u_int i ;
     pthread_mutex_lock(&peer->lock) ;
     assert_read_socket(peer->sockfd,peer->pieces->array,length-1-2*(int)sizeof(u_int)) ;
@@ -340,4 +349,75 @@ void read_bitfield(struct proto_peer *peer, int length) {
         if(isinbitfield(peer->pieces,i))
             peer->pieces->nbpiece ++ ;
     pthread_mutex_unlock(&peer->lock) ;
+    pthread_mutex_lock(&print_lock) ;
+    blue();
+    printf("Received BIT_FIELD from peer %d (file %s)\n",peer->peerId,torrent->filename);
+    normal() ;
+    pthread_mutex_unlock(&print_lock) ;
 }
+
+/* Envoie du message have au pair donné. */
+void send_have(struct proto_peer *peer, struct beerTorrent *torrent, int piece_id) {
+    size_t size = 5 ;
+    char m_id = 1 ;
+    pthread_mutex_lock(&print_lock) ;
+    cyan() ;
+    printf("Send HAVE(%d) to peer %d (file %s)\n",piece_id,peer->peerId,torrent->filename);
+    normal() ;
+    pthread_mutex_unlock(&print_lock) ;
+    assert_write_socket(peer->sockfd,&size,sizeof(int)) ;    
+    assert_write_socket(peer->sockfd,&m_id,sizeof(char)) ;    
+    assert_write_socket(peer->sockfd,&piece_id,sizeof(int)) ;    
+}
+
+/* Reception du message have du pair donné. */
+void read_have(struct proto_peer *peer, struct beerTorrent *torrent) {
+    u_int piece_id ;
+    assert_read_socket(peer->sockfd,&piece_id,sizeof(u_int)) ;
+    pthread_mutex_lock(&peer->lock);
+    setbitinfield(peer->pieces,piece_id);
+    pthread_mutex_unlock(&peer->lock);
+    pthread_mutex_lock(&print_lock) ;
+    blue();
+    printf("Received HAVE(%u) from peer %d (file %s)\n",piece_id,peer->peerId,torrent->filename);
+    normal() ;
+    pthread_mutex_unlock(&print_lock) ;
+}
+
+/* Envoie du message request au pair donné. */
+void send_request(struct proto_peer *peer, struct beerTorrent *torrent, u_int piece_id, u_int block_offset, u_int block_length) {
+    size_t size = 13 ;
+    char m_id = 1 ;
+    pthread_mutex_lock(&print_lock) ;
+    cyan() ;
+    printf("Send REQUEST(%u,%u,%u) to peer %d (file %s)\n",piece_id,block_offset,block_length,peer->peerId,torrent->filename) ;
+    normal() ;
+    pthread_mutex_unlock(&print_lock) ;
+    assert_write_socket(peer->sockfd,&size,sizeof(int)) ;    
+    assert_write_socket(peer->sockfd,&m_id,sizeof(char)) ;    
+    assert_write_socket(peer->sockfd,&piece_id,sizeof(int)) ;
+    assert_write_socket(peer->sockfd,&block_offset,sizeof(int)) ;
+    assert_write_socket(peer->sockfd,&block_length,sizeof(int)) ; 
+}
+
+/* Reception du message request du pair donné. */
+void read_request(struct proto_peer *peer, struct beerTorrent *torrent) {
+    u_int piece_id, block_offset, block_length ;
+    assert_read_socket(peer->sockfd,&piece_id,sizeof(u_int)) ;
+    assert_read_socket(peer->sockfd,&block_offset,sizeof(u_int)) ;
+    assert_read_socket(peer->sockfd,&block_length,sizeof(u_int)) ;
+    send_piece(peer,torrent,piece_id,block_offset,block_length);
+    pthread_mutex_lock(&print_lock) ;
+    blue() ;
+    printf("Received REQUEST(%u,%u,%u) from peer %d (file %s)\n",piece_id,block_offset,block_length,peer->peerId,torrent->filename);
+    normal() ;
+    pthread_mutex_unlock(&print_lock) ;
+}
+
+/* Envoie du message piece au pair donné. */
+void send_piece(struct proto_peer *peer, struct beerTorrent *torrent, u_int piece_id, u_int block_offset, u_int block_length) {
+    
+}
+
+/* Reception du message piece du pair donné. */
+void read_piece(struct proto_peer *peer, struct beerTorrent *torrent);

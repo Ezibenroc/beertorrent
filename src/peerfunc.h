@@ -151,13 +151,32 @@ int write_socket(int fd,const char *buf,int len);
 #define assert_write_socket(fd, var, len) assert(-1 != write_socket(fd, (const char*) var, len))
 
 /* Lecture simplifiée et vérifiée dans une socket. */
-int readblock(int fd, char* buffer, int len);
-#define assert_read_socket(fd, var, len) assert(-1 != readblock(fd, (char*) var, len));
+int read_socket(int fd, char* buffer, int len);
+#define assert_read_socket(fd, var, len) assert(-1 != read_socket(fd, (char*) var, len));
 
-/* Envoie le champ de bit au pair donné. */
-void send_bitfield(struct beerTorrent *torrent, struct proto_peer *peer);
 
-/* Lecture du bitfield d'un pair sur sa socket associée, message de taille length. */
-void read_bitfield(struct proto_peer *peer, int length);
+/* Envoie du message bitfield au pair donné. */
+void send_bitfield(struct proto_peer *peer, struct beerTorrent *torrent);
+
+/* Reception du message bitfield du pair donné. */
+void read_bitfield(struct proto_peer *peer, struct beerTorrent *torrent, int length);
+
+/* Envoie du message have au pair donné. */
+void send_have(struct proto_peer *peer, struct beerTorrent *torrent, int piece_id);
+
+/* Reception du message have du pair donné. */
+void read_have(struct proto_peer *peer, struct beerTorrent *torrent);
+
+/* Envoie du message request au pair donné. */
+void send_request(struct proto_peer *peer, struct beerTorrent *torrent, u_int piece_id, u_int block_offset, u_int block_length);
+
+/* Reception du message request du pair donné. */
+void read_request(struct proto_peer *peer, struct beerTorrent *torrent);
+
+/* Envoie du message piece au pair donné. */
+void send_piece(struct proto_peer *peer, struct beerTorrent *torrent, u_int piece_id, u_int block_offset, u_int block_length);
+
+/* Reception du message piece du pair donné. */
+void read_piece(struct proto_peer *peer, struct beerTorrent *torrent);
 
 #endif

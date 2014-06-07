@@ -69,7 +69,7 @@ void handleNewConnection (int fd, struct sockaddr_in from, int len) {
     printf("Peer %u added successfully (file %s).\n",peer_id,torrent_list[file_id]->torrent->filename) ;
     pthread_mutex_unlock(&print_lock) ;
     if(torrent_list[file_id]->torrent->have->nbpiece >0) /* pas la peine d'envoyer le bitfield si on n'a pas de pieces */
-        send_bitfield(torrent_list[file_id]->torrent,peer) ;
+        send_bitfield(peer,torrent_list[file_id]->torrent) ;
 }
 
 /* Boucle surveillant les connections entrantes, afin d'ajouter d'éventuels nouveaux pairs */

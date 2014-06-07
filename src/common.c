@@ -233,7 +233,7 @@ void init_peers_connections(struct torrent_info *ti) {
             ti->peerlist->pentry[i].pieces = createbitfield(ti->torrent->filelength,ti->torrent->piecelength) ; /* bitfield initialisé à 00...0 */
             pthread_mutex_unlock(&ti->peerlist->pentry[i].lock) ;
             if(ti->torrent->have->nbpiece >0) /* pas la peine d'envoyer le bitfield si on n'a pas de pieces */
-                send_bitfield(ti->torrent,&ti->peerlist->pentry[i]) ;
+                send_bitfield(&ti->peerlist->pentry[i],ti->torrent) ;
             i++ ;
         }
     }
@@ -335,18 +335,12 @@ void *treat_sockets(void* ptr) {
                 printf("\t\t\t\t\t\tNOT YET IMPLEMENTED.\n");
             break ;
             case HAVE:
-                blue();
-                printf("Received HAVE from peer %d (file %s)\n",peer_id,torrent_list[file_name]->torrent->filename);
-                normal() ;
                 pthread_mutex_unlock(&print_lock) ;
-                printf("\t\t\t\t\t\tNOT YET IMPLEMENTED.\n");
+                read_have(peers[s_name],torrent_list[file_name]->torrent);
             break ;
             case BIT_FIELD:
-                blue();
-                printf("Received BIT_FIELD from peer %d (file %s)\n",peer_id,torrent_list[file_name]->torrent->filename);
-                normal() ;
                 pthread_mutex_unlock(&print_lock) ;
-                read_bitfield(peers[s_name],message_length);
+                read_bitfield(peers[s_name],torrent_list[file_name]->torrent,message_length);
             break ;
             case REQUEST:
                 blue();
@@ -370,7 +364,10 @@ void *treat_sockets(void* ptr) {
                 printf("\t\t\t\t\t\tNOT YET IMPLEMENTED.\n");
             break ;
             default :
+                blue();
                 printf("Error, unknown message (id %d).\n",(int)message_id) ;
+                normal() ;
+                printf("\n");
                 exit(EXIT_FAILURE) ;
             break;
         }
