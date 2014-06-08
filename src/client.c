@@ -165,7 +165,7 @@ int main(int argc, char *argv[]) {
     unsigned int tmp,i,id_arg ;
     void *ptr ;
     pthread_t watcher, user, sender[N_THREAD], listener ;
-    
+    int thread_id[N_THREAD];
     file_map = init_map() ; 
     socket_map = init_map() ;
     
@@ -236,7 +236,8 @@ int main(int argc, char *argv[]) {
         exit(errno);
     }
     for(i = 0 ; i < N_THREAD ; i++) {
-        if((pthread_create(&sender[i],NULL,treat_sockets,(void*)&i))!=0) {
+        thread_id[i] = (int)i ;
+        if((pthread_create(&sender[i],NULL,treat_sockets,(void*)&thread_id[i]))!=0) {
             perror("pthread_create");
             exit(errno);
         }    

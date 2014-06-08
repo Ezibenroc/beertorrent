@@ -39,19 +39,6 @@ struct proto_tracker_trackeranswer {
     u_char nbPeers;
 };
 
-/* A SUPPRIMER SI TOUT FONCTIONNE
-struct proto_tracker_peerentry {
-    u_int peerId;
-    struct in_addr ipaddr;
-    u_short port;
-};
-
-
-struct proto_tracker_peerlistentry {
-    u_char nbPeers;
-    struct proto_tracker_peerentry * pentry;
-};
-*/
 
 /* Handshake. */
 struct proto_client_handshake {
@@ -147,6 +134,9 @@ void setbitinfield(struct bitfield * bf, u_int id);
 
 /* Renvoie vrai ssi le bit d'indice donné est dans le champ. */
 int isinbitfield(struct bitfield * bf, u_int id) __attribute__((pure));
+
+/* Renvoie vrai ssi toutes les pièces sont à 1. */
+int isfull(struct bitfield *bf) ;
 
 /* Initialise un torrent à partir du fichier beertorrent donné. */
 struct beerTorrent * addtorrent(char * filename);

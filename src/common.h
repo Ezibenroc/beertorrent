@@ -48,6 +48,9 @@ struct torrent_info **torrent_list ;
 unsigned int nb_files ;
 unsigned int nb_files_to_download ;
 
+/* Renvoie vrai ssi plus de requête à envoyer. */
+int end_job();
+
 /* FIFO de socket. */
 /* Un thread repère les sockets ayant un message et les place dans la file request. */
 /* Les autres treads défilent une socket, lisent son message et le traitent, et la placent dans la file handled_request. */

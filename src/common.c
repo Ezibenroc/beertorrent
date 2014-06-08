@@ -19,6 +19,18 @@
 
 #define size_id 22
 
+/* Renvoie vrai ssi plus de requête à envoyer. */
+int end_job() {
+    u_int i ;
+    int flag=1 ;
+    for(i = 0 ; i < nb_files && flag ; i++) {
+        pthread_mutex_lock(&torrent_list[i]->torrent->request_lock) ;
+        flag = isfull(torrent_list[i]->torrent->request) ;
+        pthread_mutex_unlock(&torrent_list[i]->torrent->request_lock) ;
+    }
+    return flag ;
+}
+
 /* Fonction d'affichage (ID et port). */
 void print_id() {
     char s[size_id] ;
@@ -144,8 +156,10 @@ int choose_piece_peer_for_file(u_int *piece_id, struct proto_peer **peer, struct
     pthread_mutex_lock(&bt->torrent->request_search_lock) ;
     /* Recherche de la pièce (déterministe). */
     while(true) {
-        if(piece >= (bt->torrent->filelength/bt->torrent->piecelength+1)) /* pas de pièce à demander */
+        if(piece >= bt->torrent->have->totalpiece) {/* pas de pièce à demander */
+            pthread_mutex_unlock(&bt->torrent->request_search_lock) ;            
             return 0 ;
+        }
         pthread_mutex_lock(&bt->torrent->request_lock) ;
         flag = isinbitfield(bt->torrent->request,piece) ;
         pthread_mutex_unlock(&bt->torrent->request_lock) ;
@@ -465,6 +479,7 @@ void *watch_sockets(void *useless) {
 void *treat_sockets(void* ptr) {
     int thread_id = *(int*)ptr;
     int sockfd, message_length, file_hash, peer_id ;
+    int i,tmp;
     char message_id ;
     u_int s_name, file_name ;
     
@@ -479,7 +494,24 @@ void *treat_sockets(void* ptr) {
         file_hash = (int)socket_to_file[s_name] ;
         peer_id = (int)socket_to_peer[s_name] ;
         file_name = get_name(file_map,(u_int)file_hash) ;
-        assert_read_socket(sockfd,&message_length,sizeof(int)) ;
+
+        if(-1==read_socket(sockfd,(char*)&message_length,sizeof(int))) { /* pair déconnecté, on le supprime */
+            pthread_mutex_lock(&torrent_list[file_name]->peerlist->lock);
+            for(i = 0 ; i < torrent_list[file_name]->peerlist->nbPeers ; i++)
+                if(torrent_list[file_name]->peerlist->pentry[i].peerId == (u_int)peer_id)
+                    break ;
+            assert(i < torrent_list[file_name]->peerlist->nbPeers);
+            tmp=i;
+            deletepeer(&torrent_list[file_name]->peerlist->pentry[i]);
+            printf("Peer %d does not respond anymore. Deleted from list.\n",peer_id);
+            for(i=tmp;i< torrent_list[file_name]->peerlist->nbPeers-1 ; i++) {
+                   torrent_list[file_name]->peerlist->pentry[i] = torrent_list[file_name]->peerlist->pentry[i+1] ;         
+            }
+            torrent_list[file_name]->peerlist->nbPeers--;
+            pthread_mutex_unlock(&torrent_list[file_name]->peerlist->lock);
+            continue ;
+        }
+        
         assert_read_socket(sockfd,&message_id,sizeof(char)) ;
         switch(message_id) {
             case KEEP_ALIVE :
