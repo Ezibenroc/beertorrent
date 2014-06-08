@@ -409,10 +409,9 @@ void read_bitfield(struct proto_peer *peer, struct beerTorrent *torrent, int len
     if(flag) {
         for(i = 0 ; i < 3 ; i++) {
             if(!choose_piece_peer(&new_piece, &new_peer, &new_torrent, thread_id,0)) {
-                printf("NO !\n");
                 break ; /* non bloquant */
             }
-            if(new_piece <= new_torrent->filelength/new_torrent->piecelength) /* pièce entière */
+            if(new_piece < (new_torrent->filelength-1)/new_torrent->piecelength) /* pièce entière */
                 send_request(new_peer, new_torrent, new_piece, 0, new_torrent->piecelength, thread_id) ; 
             else if(new_torrent->filelength%new_torrent->piecelength!=0)
                 send_request(new_peer, new_torrent, new_piece, 0, new_torrent->filelength%new_torrent->piecelength, thread_id) ;    
@@ -589,7 +588,7 @@ void read_piece(struct proto_peer *peer, struct beerTorrent *torrent, struct pro
     /* Envoie éventuel d'une requête (s'il reste des fichiers à télécharger). */
     if(flag && !end_job()) {
         choose_piece_peer(&new_piece, &new_peer, &new_torrent, thread_id,1) ; /* bloquant */
-        if(new_piece < new_torrent->filelength/new_torrent->piecelength) /* pièce entière */
+        if(new_piece < (new_torrent->filelength-1)/new_torrent->piecelength) /* pièce entière */
             send_request(new_peer, new_torrent, new_piece, 0, new_torrent->piecelength, thread_id) ; 
         else if(new_torrent->filelength%new_torrent->piecelength!=0)
             send_request(new_peer, new_torrent, new_piece, 0, new_torrent->filelength%new_torrent->piecelength, thread_id) ;             

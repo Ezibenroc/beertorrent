@@ -239,8 +239,8 @@ int choose_piece_peer(u_int *piece_id, struct proto_peer **peer, struct beerTorr
         else { /* Non trouvé, on fait une recherche exhaustive */
             for(file_id = 0 ; file_id < nb_files ; file_id++) {
                 if(!torrent_list[file_id]->torrent->download_ended && choose_piece_peer_for_file(piece_id,peer,torrent_list[file_id])) {
-                    break ;
                     *torrent = torrent_list[file_id]->torrent ;
+                    break ;
                 }            
             }
             if(file_id < nb_files) /* trouvé */
@@ -255,7 +255,7 @@ int choose_piece_peer(u_int *piece_id, struct proto_peer **peer, struct beerTorr
                 printf("Did not find a piece to request. Sleep for %u second(s).\n",time_sleep);
                 pthread_mutex_unlock(&print_lock) ;            
                 sleep(time_sleep) ;
-                time_sleep = max(60,time_sleep*2) ; /* sleep exponentiel jusqu'à la borne */
+                time_sleep = min(60,time_sleep*2) ; /* sleep exponentiel jusqu'à la borne */
             }
         }
     }
@@ -360,7 +360,7 @@ void init_peers_connections(struct torrent_info *ti) {
             id_sock = get_name(socket_map,(u_int)ti->peerlist->pentry[i].sockfd) ;
             socket_to_file[id_sock] = ti->torrent->filehash ;
             socket_to_peer[id_sock] = ti->peerlist->pentry[i].peerId ;
-            peers[id_sock] = ti->peerlist->pentry ;
+            peers[id_sock] = &ti->peerlist->pentry[i] ;
             pthread_mutex_lock(&ti->peerlist->pentry[i].lock) ;
             ti->peerlist->pentry[i].pieces = createbitfield(ti->torrent->filelength,ti->torrent->piecelength) ; /* bitfield initialisé à 00...0 */
             pthread_mutex_unlock(&ti->peerlist->pentry[i].lock) ;
