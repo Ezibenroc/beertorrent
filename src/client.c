@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <errno.h>
+#include <signal.h>
 
 #include "peerfunc.h"
 #include "common.h"
@@ -75,13 +76,12 @@ void handleNewConnection (int fd, struct sockaddr_in from, int len) {
 }
 
 /* Boucle surveillant les connections entrantes, afin d'ajouter d'éventuels nouveaux pairs */
-void start_client() {
+void *start_client(void *useless) {
     struct sockaddr_in soc_in;
     int val;
     struct sockaddr_in from;
     int len;
     int f;
-
     /* socket Internet, de type stream (fiable, bi-directionnel) */
     ss = socket (PF_INET, SOCK_STREAM, 0);
 
@@ -122,6 +122,7 @@ void start_client() {
     normal();
     printf("will quit.\n") ;
     pthread_mutex_unlock(&print_lock) ;
+    pthread_exit(useless);
 }
 
 void *interact (void *useless) {
@@ -160,7 +161,8 @@ void *interact (void *useless) {
 
 int main(int argc, char *argv[]) {
     unsigned int tmp,i,id_arg ;
-    pthread_t watcher, user, sender[N_THREAD] ;
+    void *ptr ;
+    pthread_t watcher, user, sender[N_THREAD], listener ;
     
     file_map = init_map() ; 
     socket_map = init_map() ;
@@ -237,8 +239,16 @@ int main(int argc, char *argv[]) {
             exit(errno);
         }    
     }
-    
-    /* Attente de nouveaux pairs */    
-    start_client() ;
+    if((pthread_create(&listener,NULL,start_client,NULL))!=0) {
+        perror("pthread_create");
+        exit(errno);
+    }
+    pthread_join(user,&ptr);
+    pthread_join(watcher,&ptr);
+    for(i = 0 ; i < N_THREAD ; i++) {
+        pthread_join(sender[i],&ptr);
+    }
+    /* Arrêt du thread d'écoute (assez sale, désolé) */
+/*    pthread_kill(user,SIGKILL);*/
     return 0 ;
 }
