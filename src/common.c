@@ -445,7 +445,6 @@ void *watch_sockets(void *useless) {
         pthread_mutex_lock(&request->lock) ;
         for(i = 0 ; i < size ; i++) {
             if(socket_set[i].revents != 0) { /* un événement ! */
-                assert(socket_set[i].revents == POLLIN) ;
                 assert(socket_set[i].fd > 0) ;
                 request->queue[request->last] = socket_set[i].fd ;
                 request->last = (request->last+1)%N_SOCK ;
