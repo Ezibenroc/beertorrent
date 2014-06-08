@@ -10,6 +10,8 @@
 #include "common.h"
 #include "rename.h"
 
+/* socket d'écoute (variable globale, afin de pouvoir stoper proprement le thread d'écoute à la fin du programme) */
+int ss; 
 
 /* Fonction appelée lorsque l'on reçoit un handshake d'un nouveau pair. */
 void handleNewConnection (int fd, struct sockaddr_in from, int len) {
@@ -76,7 +78,9 @@ void handleNewConnection (int fd, struct sockaddr_in from, int len) {
 void start_client() {
     struct sockaddr_in soc_in;
     int val;
-    int ss;  /* socket d'écoute */
+    struct sockaddr_in from;
+    int len;
+    int f;
 
     /* socket Internet, de type stream (fiable, bi-directionnel) */
     ss = socket (PF_INET, SOCK_STREAM, 0);
@@ -98,23 +102,65 @@ void start_client() {
     /* Listen */
     listen (ss, 5);
 
-    while (1) {
-        struct sockaddr_in from;
-        int len;
-        int f;
+    while (!quit_program) {
 
         /* Accept & Serve */
         len = sizeof (from);
         f = accept (ss, (struct sockaddr *)&from, (u_int*)&len);
+        if(f<0 && quit_program)
+            break ;
+        else if(f<0) {
+            perror("accept");
+            exit(errno);
+        }
 
         handleNewConnection(f, from, len);
     }
+    pthread_mutex_lock(&print_lock) ;
+    green();
+    printf("[Listening thread]\t");
+    normal();
+    printf("will quit.\n") ;
+    pthread_mutex_unlock(&print_lock) ;
 }
 
+void *interact (void *useless) {
+    char c ;
+    quit_program = 0 ;
+    while(!quit_program) {
+        switch(c=(char)getchar()) {
+            case 'q' :
+                pthread_mutex_lock(&print_lock) ;
+                green() ;
+                printf("WILL QUIT.\n");
+                quit_program = 1 ;
+                close(ss);
+                normal() ;
+                pthread_mutex_unlock(&print_lock) ;
+            break ;
+            default :
+                if(c!='\n') {
+                    pthread_mutex_lock(&print_lock) ;
+                    green() ;
+                    printf("UNKNOWN COMMAND : %c.\n",c);
+                    normal() ;
+                    pthread_mutex_unlock(&print_lock) ;
+                }
+            break ;
+        }        
+    }
+    pthread_mutex_lock(&print_lock) ;
+    green();
+    printf("[Interacting thread]\t");
+    normal();
+    printf("will quit.\n") ;
+    pthread_mutex_unlock(&print_lock) ;
+    pthread_exit(useless);
+}
 
 int main(int argc, char *argv[]) {
     unsigned int tmp,i,id_arg ;
-    pthread_t watcher, sender[N_THREAD] ;
+    pthread_t watcher, user, sender[N_THREAD] ;
     
     file_map = init_map() ; 
     socket_map = init_map() ;
@@ -177,6 +223,10 @@ int main(int argc, char *argv[]) {
         init_peers_connections(torrent_list[i]) ;
     
     /* Création des threads. */
+    if((pthread_create(&user,NULL,interact,NULL))!=0) {
+        perror("pthread_create");
+        exit(errno);
+    }
     if((pthread_create(&watcher,NULL,watch_sockets,NULL))!=0) {
         perror("pthread_create");
         exit(errno);

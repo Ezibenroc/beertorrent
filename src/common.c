@@ -116,7 +116,7 @@ int pop(struct waiting_queue *q) {
     int tmp ;
     sem_wait(&(q->full)) ;
     pthread_mutex_lock(&q->lock) ;
-    assert(q->first != q->last);
+    assert(quit_program || q->first != q->last);
     tmp = q->queue[q->first] ;
     q->first = (q->first+1)%N_SOCK ;
     pthread_mutex_unlock(&q->lock) ;  
@@ -404,7 +404,7 @@ void *watch_sockets(void *useless) {
     for(i = size ; i < N_SOCK ; i++)
         socket_set[i].fd = -1 ; /* pas de socket pour l'instant */
     /* Boucle d'écoute */
-    while(1) {
+    while(!quit_program) {
         if((nb_readable=poll(socket_set,size,timeout))<0) {
             perror("poll");
             exit(errno) ;
@@ -445,7 +445,19 @@ void *watch_sockets(void *useless) {
         }
         pthread_mutex_unlock(&request->lock) ;
     }
-    return useless;
+    pthread_mutex_lock(&print_lock) ;
+    green();
+    printf("[Watching thread]\t");
+    normal();
+    printf("will quit.\n") ;
+    pthread_mutex_unlock(&print_lock) ;
+    for(i = 0 ; i < N_THREAD ; i++) {
+        if(sem_post(&request->full) < 0) { /* signal sur la semaphore */
+            perror("sem_post");
+            exit(errno) ;
+        }
+    }
+    pthread_exit(useless);
 }
 
 /* Boucle : défile une socket à traiter, lis son message et exécute les actions appropriées. */
@@ -461,6 +473,8 @@ void *treat_sockets(void* ptr) {
     
     while(1) {
         sockfd = pop(request) ;
+        if(quit_program)
+            break ;
         s_name = get_name(socket_map,(u_int)sockfd) ;
         file_hash = (int)socket_to_file[s_name] ;
         peer_id = (int)socket_to_peer[s_name] ;
@@ -506,6 +520,11 @@ void *treat_sockets(void* ptr) {
         pthread_mutex_unlock(&handled_request->lock) ;
     }
     
-    
-    return ptr;
+    pthread_mutex_lock(&print_lock) ;
+    green();
+    printf("[#%d thread]\t",thread_id);
+    normal();
+    printf("will quit.\n") ;
+    pthread_mutex_unlock(&print_lock) ;    
+    pthread_exit(ptr);
 }

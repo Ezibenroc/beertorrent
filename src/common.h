@@ -21,6 +21,8 @@
 #define pthread_mutex_lock(x) assert(!pthread_mutex_lock(x))
 #define pthread_mutex_unlock(x) assert(!pthread_mutex_unlock(x))
 
+int quit_program ;
+
 /* ID du pair. */
 u_int my_id ;
 /* Port du pair. */
