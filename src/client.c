@@ -81,7 +81,9 @@ void *start_client(void *useless) {
     int val;
     struct sockaddr_in from;
     int len;
-    int f;
+    int f,tmp;
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE,&tmp) ;
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS,&tmp) ;
     /* socket Internet, de type stream (fiable, bi-directionnel) */
     ss = socket (PF_INET, SOCK_STREAM, 0);
 
@@ -248,7 +250,19 @@ int main(int argc, char *argv[]) {
     for(i = 0 ; i < N_THREAD ; i++) {
         pthread_join(sender[i],&ptr);
     }
-    /* Arrêt du thread d'écoute (assez sale, désolé) */
-/*    pthread_kill(user,SIGKILL);*/
+    /* Arrêt du thread d'écoute (assez sale, pas réussi à le faire autrement) */
+    pthread_cancel(listener);
+    pthread_mutex_lock(&print_lock) ;
+    green();
+    printf("[Listening thread]\t");
+    normal();
+    printf("will quit.\n") ;
+    pthread_mutex_unlock(&print_lock) ;
+    pthread_join(listener,&ptr);
+    
+    /* Nettoyage */
+    for(i = 0 ; i < nb_files ; i++)
+        deletetorrentinfo(torrent_list[i]) ;
+    free(torrent_list);
     return 0 ;
 }

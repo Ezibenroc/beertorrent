@@ -71,7 +71,7 @@ struct proto_peer {
 };
 
 /* Supprime le pair. */
-void delete_peer(struct proto_peer *p) ;
+void deletepeer(struct proto_peer *p) ;
 
 
 /* Tableau de pairs (protégé par mutex). */
@@ -102,6 +102,9 @@ struct bitfield {
     u_int nbpiece;
 };
 
+/* Supprime la liste. */
+void deletepeerlist(struct proto_tracker_peerlist *l) ;
+
 /* Torrent. */
 struct beerTorrent {
     u_int filelength;               /* longueur du fichier */
@@ -126,6 +129,9 @@ struct torrent_info {
     struct beerTorrent *torrent;
     struct proto_tracker_peerlist *peerlist;
 };
+
+/* Supprime torrent_info */
+void deletetorrentinfo(struct torrent_info *bt);
 
 /* Initialisation d'un champ de bits. */
 struct bitfield * createbitfield(u_int filelength, u_int piecelength);

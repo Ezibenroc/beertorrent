@@ -144,7 +144,6 @@ int choose_piece_peer_for_file(u_int *piece_id, struct proto_peer **peer, struct
     pthread_mutex_lock(&bt->torrent->request_search_lock) ;
     /* Recherche de la pièce (déterministe). */
     while(true) {
-        printf("PIECE %u\n",piece);
         if(piece >= (bt->torrent->filelength/bt->torrent->piecelength+1)) /* pas de pièce à demander */
             return 0 ;
         pthread_mutex_lock(&bt->torrent->request_lock) ;
@@ -457,6 +456,7 @@ void *watch_sockets(void *useless) {
             exit(errno) ;
         }
     }
+    free(socket_set);
     pthread_exit(useless);
 }
 
@@ -519,10 +519,10 @@ void *treat_sockets(void* ptr) {
         handled_request->last = (handled_request->last+1)%N_SOCK ;
         pthread_mutex_unlock(&handled_request->lock) ;
     }
-    
+    free(io_buff);
     pthread_mutex_lock(&print_lock) ;
     green();
-    printf("[#%d thread]\t",thread_id);
+    printf("[#%d thread]\t\t",thread_id);
     normal();
     printf("will quit.\n") ;
     pthread_mutex_unlock(&print_lock) ;    
