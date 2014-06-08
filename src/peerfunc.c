@@ -530,7 +530,7 @@ void read_piece(struct proto_peer *peer, struct beerTorrent *torrent, struct pro
         pthread_mutex_lock(&print_lock) ;
         nb_files_to_download -- ; /* protégé par le mutex d'affichage, évite d'utiliser un n-ième mutex */
         if(nb_files_to_download > 0) 
-            flag = 0 ;
+            flag = 1 ;
         green();
         printf("[#%d thread]\t",thread_id);
         normal() ;
