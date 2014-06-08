@@ -115,6 +115,7 @@ struct beerTorrent {
     pthread_mutex_t have_lock;      /* mutex pour R/W sur ce champ */
     struct bitfield * request;      /* champ de bits représentant les pièces pour lesquels on a émis une requête */
     pthread_mutex_t request_lock;   /* mutex pour R/W sur ce champ */
+    pthread_mutex_t request_search_lock ; /* mutex pour la recherche de nouvelle requête à faire */
     bool download_ended;            /* téléchargement terminé ou non */
     int last_downloaded_piece ;     /* indice de la dernière pièce téléchargée (téléchargées dans l'ordre croissant) */
 };

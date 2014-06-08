@@ -120,6 +120,7 @@ int main(int argc, char *argv[]) {
     socket_map = init_map() ;
     
     assert(pthread_mutex_init(&print_lock, NULL)==0);
+    assert(sizeof(int)==sizeof(u_int)) ; 
     
     nb_files = 0 ;
     nb_files_to_download = 0 ;

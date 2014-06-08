@@ -138,11 +138,13 @@ void init_cancel() {
 /* Renvois 1 en cas de succés, 0 en cas d'échec (piece_id et peer ne sont alors pas modifiés). */
 /* Pré-condition : fichier non complet. */
 int choose_piece_peer_for_file(u_int *piece_id, struct proto_peer **peer, struct torrent_info *bt)  {
-    u_int piece = (u_int)bt->torrent->last_downloaded_piece ;
+    u_int piece = (u_int)(bt->torrent->last_downloaded_piece+1) ;
     int flag, npeer, ipeer ;
     int ntry, itry ;
+    pthread_mutex_lock(&bt->torrent->request_search_lock) ;
     /* Recherche de la pièce (déterministe). */
     while(true) {
+        printf("PIECE %u\n",piece);
         if(piece >= (bt->torrent->filelength/bt->torrent->piecelength+1)) /* pas de pièce à demander */
             return 0 ;
         pthread_mutex_lock(&bt->torrent->request_lock) ;
@@ -159,8 +161,10 @@ int choose_piece_peer_for_file(u_int *piece_id, struct proto_peer **peer, struct
     pthread_mutex_lock(&bt->peerlist->lock) ;
     npeer = bt->peerlist->nbPeers ;
     pthread_mutex_unlock(&bt->peerlist->lock) ;
-    if(npeer == 0)
+    if(npeer == 0) {
+        pthread_mutex_unlock(&bt->torrent->request_search_lock) ;
         return 0 ;
+    }
     ntry = npeer ; /* nombre d'essais random */
     flag = 0 ;
     for(itry = 0 ; itry < ntry ; itry++) {
@@ -175,6 +179,8 @@ int choose_piece_peer_for_file(u_int *piece_id, struct proto_peer **peer, struct
     if(flag) { /* trouvé un pair */
         *piece_id = piece ;
         *peer = &bt->peerlist->pentry[ipeer] ;
+        setbitinfield(bt->torrent->request,piece) ;
+        pthread_mutex_unlock(&bt->torrent->request_search_lock) ;
         return 1 ;
     }
     /* Recherche du pair (non déterministe) */
@@ -190,10 +196,14 @@ int choose_piece_peer_for_file(u_int *piece_id, struct proto_peer **peer, struct
     if(flag) { /* trouvé un pair */
         *piece_id = piece ;
         *peer = &bt->peerlist->pentry[ipeer] ;
+        setbitinfield(bt->torrent->request,piece) ;
+        pthread_mutex_unlock(&bt->torrent->request_search_lock) ;
         return 1 ;
     }
-    else /* pas de pair */
+    else {/* pas de pair */
+        pthread_mutex_unlock(&bt->torrent->request_search_lock) ;
         return 0 ;
+    }
 }
 
 /* Choisis un fichier, puis une pièce et un pair, pour la prochaine requête. */
