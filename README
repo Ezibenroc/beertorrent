@@ -1,0 +1,9 @@
+Tom Cornebize, Agathe Herrou
+08/08/2014
+Protocole pair-à-pair simplifié.
+
+Compilation : make
+Exécution du tracker     ./tracker
+Exécution d'un client    ./client [fichiers]
+
+Pour plus de détails, voir le rapport associé.
