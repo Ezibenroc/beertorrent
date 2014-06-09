@@ -404,8 +404,6 @@ void read_bitfield(struct proto_peer *peer, struct beerTorrent *torrent, int len
     normal() ;
     flag = (nb_files_to_download>0) ; /* protégé par le mutex d'affichage, évite d'utiliser un n-ième mutex */
     pthread_mutex_unlock(&print_lock) ;
-    for(i = 0 ; i < peer->pieces->totalpiece ; i++)
-        assert(isinbitfield(peer->pieces,(u_int)i));
     if(flag) {
         for(i = 0 ; i < 3 ; i++) {
             if(!choose_piece_peer(&new_piece, &new_peer, &new_torrent, thread_id,0)) {
@@ -587,10 +585,11 @@ void read_piece(struct proto_peer *peer, struct beerTorrent *torrent, struct pro
     }
     /* Envoie éventuel d'une requête (s'il reste des fichiers à télécharger). */
     if(flag && !end_job()) {
-        choose_piece_peer(&new_piece, &new_peer, &new_torrent, thread_id,1) ; /* bloquant */
-        if(new_piece < (new_torrent->filelength-1)/new_torrent->piecelength) /* pièce entière */
-            send_request(new_peer, new_torrent, new_piece, 0, new_torrent->piecelength, thread_id) ; 
-        else if(new_torrent->filelength%new_torrent->piecelength!=0)
-            send_request(new_peer, new_torrent, new_piece, 0, new_torrent->filelength%new_torrent->piecelength, thread_id) ;             
+        if(choose_piece_peer(&new_piece, &new_peer, &new_torrent, thread_id,1)) { /* bloquant */
+            if(new_piece < (new_torrent->filelength-1)/new_torrent->piecelength) /* pièce entière */
+                send_request(new_peer, new_torrent, new_piece, 0, new_torrent->piecelength, thread_id) ; 
+            else if(new_torrent->filelength%new_torrent->piecelength!=0)
+                send_request(new_peer, new_torrent, new_piece, 0, new_torrent->filelength%new_torrent->piecelength, thread_id) ;      
+        }       
     }
 }

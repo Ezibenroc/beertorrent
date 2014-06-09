@@ -24,9 +24,11 @@ int end_job() {
     u_int i ;
     int flag=1 ;
     for(i = 0 ; i < nb_files && flag ; i++) {
+        pthread_mutex_lock(&torrent_list[i]->torrent->request_search_lock) ;
         pthread_mutex_lock(&torrent_list[i]->torrent->request_lock) ;
         flag = isfull(torrent_list[i]->torrent->request) ;
         pthread_mutex_unlock(&torrent_list[i]->torrent->request_lock) ;
+        pthread_mutex_unlock(&torrent_list[i]->torrent->request_search_lock) ;
     }
     return flag ;
 }
@@ -248,6 +250,8 @@ int choose_piece_peer(u_int *piece_id, struct proto_peer **peer, struct beerTorr
             else if(!blocking)
                 return 0 ;
             else {
+                if(time_sleep >= 8)
+                    return 0 ;
                 pthread_mutex_lock(&print_lock) ;
                 green();
                 printf("[#%d thread]\t",thread_id);
@@ -514,10 +518,12 @@ void *treat_sockets(void* ptr) {
         assert_read_socket(sockfd,&message_id,sizeof(char)) ;
         switch(message_id) {
             case KEEP_ALIVE :
+                pthread_mutex_lock(&print_lock) ;
                 blue();
                 printf("Received KEEP_ALIVE from peer %d (file %s)\n",peer_id,torrent_list[file_name]->torrent->filename);
                 normal() ;
                 printf("\t\t\t\t\t\tNOT YET IMPLEMENTED.\n");
+                pthread_mutex_unlock(&print_lock) ;
             break ;
             case HAVE:
                 read_have(peers[s_name],torrent_list[file_name]->torrent,thread_id);
@@ -532,10 +538,15 @@ void *treat_sockets(void* ptr) {
                 read_piece(peers[s_name],torrent_list[file_name]->torrent,torrent_list[file_name]->peerlist,message_length,io_buff,thread_id) ;
             break ;
             case CANCEL:
+                pthread_mutex_lock(&print_lock) ;
                 blue();
                 printf("Received CANCEL from peer %d (file %s)\n",peer_id,torrent_list[file_name]->torrent->filename);
                 normal() ;
                 printf("\t\t\t\t\t\tNOT YET IMPLEMENTED.\n");
+                assert_read_socket(sockfd,&tmp,sizeof(u_int)) ;
+                assert_read_socket(sockfd,&tmp,sizeof(u_int)) ;
+                assert_read_socket(sockfd,&tmp,sizeof(u_int)) ;
+                pthread_mutex_unlock(&print_lock) ;
             break ;
             default :
                 blue();

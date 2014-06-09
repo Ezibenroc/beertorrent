@@ -1,8 +1,8 @@
-CC=colorgcc
+CC=gcc #colorgcc
 
 CFLAGS= -g -O3 -lpthread -D_REENTRANT -W -Wextra -Wcast-qual -Wcast-align -Wfloat-equal -Wshadow -Wpointer-arith -Wunreachable-code -Wchar-subscripts -Wcomment -Wformat -Werror-implicit-function-declaration -Wmain -Wmissing-braces -Wparentheses -Wsequence-point -Wreturn-type -Wswitch -Wuninitialized -Wundef -Wshadow -Wwrite-strings -Wsign-compare -pedantic -Wconversion -Wall -Wunused -Wsign-conversion -Wunused -Wstrict-aliasing -Wstrict-overflow -Wconversion -Wdisabled-optimization -Wlogical-op -Wunsafe-loop-optimizations # -Werror -Wmissing-noreturn
 
-EXEC=setup tracker client test_name torrent_maker
+EXEC=setup tracker client torrent_maker
 
 all: $(EXEC)
 
@@ -33,12 +33,6 @@ client: obj/client.o obj/peerfunc.o obj/common.o obj/rename.o
 clean:
 	rm -rf obj $(EXEC) *~ */*~
 	
-############### TESTS
-obj/test_name.o: test/test_name.c
-	$(CC) -c -o $@ $< $(CFLAGS)
-
-test_name: obj/test_name.o obj/rename.o
-	gcc -o $@ $^ $(CFLAGS)
 	
 ############### TORRENT MAKER
 obj/torrent_maker.o: src/torrent_maker.c
