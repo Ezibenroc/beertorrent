@@ -108,6 +108,7 @@ struct beerTorrent {
     pthread_mutex_t request_search_lock ; /* mutex pour la recherche de nouvelle requête à faire */
     bool download_ended;            /* téléchargement terminé ou non */
     int last_downloaded_piece ;     /* indice de la dernière pièce téléchargée (téléchargées dans l'ordre croissant) */
+    u_int begin_time ;                /* instant du début du téléchargement, donné par time(NULL) */
 };
 
 /* Torrent et ses pairs. */

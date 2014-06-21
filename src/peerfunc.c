@@ -15,6 +15,30 @@
 
 #include "common.h"
 
+/* Affiche les infos sur le temps de téléchargement. */
+void print_time_stat(u_int dl_time, u_int size) {
+    u_int d,h,m,s,tmp ;
+    double speed ;
+    tmp=dl_time;
+    d = tmp/(3600*24) ;
+    tmp = tmp%(3600*24) ;
+    h = tmp/3600 ;
+    tmp=tmp%3600 ;
+    m = tmp/60 ;
+    s = tmp%60 ;
+    printf("Download time : ");
+    if(d>0) printf("%u days, %u hours, %u minutes and %u seconds.\n",d,h,m,s) ;
+    else if(h>0) printf("%u hours, %u minutes and %u seconds.\n",h,m,s) ;
+    else if(m>0) printf("%u minutes and %u seconds.\n",m,s) ;
+    else printf("%u seconds.\n",s) ;
+    if(dl_time == 0) { printf("Download speed : infinite.\n"); return ;}
+    speed = (double)size/(double)dl_time ;
+    if(speed >= 1000000000) printf("Download speed : %.3f giga bytes per second.\n",speed/1000000000);
+    else if(speed >= 1000000) printf("Download speed : %.3f mega bytes per second.\n",speed/1000000);
+    else if(speed >= 1000) printf("Download speed : %.3f kilo bytes per second.\n",speed/1000);
+    else  printf("Download speed : %.3f bytes per second.\n",speed);
+}
+
 /* Renvoie la liste de pairs associés à un torrent (requête au tracker). */
 struct proto_tracker_peerlist * gettrackerinfos(struct beerTorrent * bt, u_int myId, u_short myPort)
 {
@@ -289,6 +313,7 @@ struct beerTorrent * addtorrent(char * filename) {
 
     printf("%s added\n", filename);
     free(zero_buf);
+    bt->begin_time = (u_int)time(NULL);
     return bt;
 }
 
@@ -531,6 +556,7 @@ void read_piece(struct proto_peer *peer, struct beerTorrent *torrent, struct pro
     u_int piece_id, block_offset ;
     int block_length,i,size_list ;
     int flag=0 ;
+    u_int dl_time ;
     u_int new_piece ;
     struct proto_peer *new_peer ;
     struct beerTorrent *new_torrent ;
@@ -566,6 +592,7 @@ void read_piece(struct proto_peer *peer, struct beerTorrent *torrent, struct pro
         flag = 1 ;
     pthread_mutex_unlock(&torrent->have_lock);
     if(torrent->download_ended) {
+        dl_time = (u_int)time(NULL) - torrent->begin_time ;
         pthread_mutex_lock(&print_lock) ;
         nb_files_to_download -- ; /* protégé par le mutex d'affichage, évite d'utiliser un n-ième mutex */
         if(nb_files_to_download > 0) 
@@ -574,6 +601,7 @@ void read_piece(struct proto_peer *peer, struct beerTorrent *torrent, struct pro
         printf("[#%d thread]\t\t",thread_id);
         normal() ;
         printf("Terminated download of file %s.\n",torrent->filename);
+        print_time_stat(dl_time,torrent->filelength) ;
         pthread_mutex_unlock(&print_lock) ;
     }    
     /* Envoie de have à tous les pairs. */
