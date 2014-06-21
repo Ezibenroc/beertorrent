@@ -439,13 +439,15 @@ void *watch_sockets(void *useless) {
         pthread_mutex_unlock(&handled_request->lock) ;
         /* On place dans request toutes les sockets avec un message en attente. */
         if(nb_readable == 0) continue ;
-        pthread_mutex_lock(&print_lock) ;
-        green();
-        printf("[Watching thread]\t");
-        blue();
-        printf("There is %d additional readable socket(s).\n",nb_readable) ;
-        normal();
-        pthread_mutex_unlock(&print_lock) ;
+        if(VERBOSE) {
+            pthread_mutex_lock(&print_lock) ;
+            green();
+            printf("[Watching thread]\t");
+            blue();
+            printf("There is %d additional readable socket(s).\n",nb_readable) ;
+            normal();
+            pthread_mutex_unlock(&print_lock) ;
+        }
         pthread_mutex_lock(&request->lock) ;
         for(i = 0 ; i < size ; i++) {
             if(socket_set[i].revents != 0) { /* un événement ! */

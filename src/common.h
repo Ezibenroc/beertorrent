@@ -18,6 +18,8 @@
 #define N_THREAD 4
 #define N_REQUESTS 10
 
+#define VERBOSE 1
+
 #define pthread_mutex_lock(x) assert(!pthread_mutex_lock(x))
 #define pthread_mutex_unlock(x) assert(!pthread_mutex_unlock(x))
 
