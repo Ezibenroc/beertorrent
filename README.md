@@ -4,7 +4,7 @@ Tom Cornebize, Agathe Herrou
 
 Compilation: `make`
 
-Create a file foo.beertorrent with a file foo.ext: `./torrent_maker foo.ext`
+Create a file foo.beertorrent with from a given file: `./torrent_maker [file]`
 
 Launch the tracker: `./tracker`
 
