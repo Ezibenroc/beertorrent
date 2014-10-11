@@ -1,5 +1,7 @@
 # BeerTorrent
 
+The present report is a translation of the original report (written in French).
+
 Implementation of a simplified peer to peer protocol from scratch.
 
 * Communication with sockets.
@@ -13,7 +15,7 @@ report the client program.
 
 Operations at the start of the program:
 
-1. For each file, get the associated informations (hash, file size, pieces size, 
+1. For each file, get the associated information (hash, file size, pieces size, 
 list of peers) from the tracker.
 2. For each couple (peer, file), create a socket and realize a handshake with
 the peer.
@@ -25,7 +27,7 @@ Then, several threads are created:
 * **WATCHER** Watching of all registered sockets, using the function `poll`. This
 function blocks the thread till there is an available socket (i.e. a socket with
 non-blocking reading). The `watcher` thread then put all readable sockets in the 
-queue `request`. These sockets will then be poped by one of the thread `sender`
+queue `request`. These sockets will then be popped by one of the thread `sender`
 threads (defined after). The socket's messages will be handled, then the `sender` 
 threads will put them in the queue `handled_request`. The `watcher` thread will
 pop them to put them back in the watching set of the `poll` function.
@@ -68,9 +70,9 @@ Messages **Cancel** and **Keep-Alive** are ignored.
 
 When a client begins to download some files, it emits several requests (because 
 it has received bitfield(s)). A request is emitted for each received piece, thus
-the number of ongoing requets remains constant. This number is in general greater
+the number of ongoing requests remains constant. This number is in general greater
 than 1 (if the files to download are big enough, it is equal to the constant
-N_REQUETS). This allow a pipeline: when a client receive some piece, an other client
+N_REQUEST). This allow a pipeline: when a client receive some piece, an other client
 is already sending it another piece.
 
 
@@ -78,7 +80,7 @@ is already sending it another piece.
 
 The number of `sender` threads is specified at compile time (constant N_THREAD).
 The threads are making a lot of input/output operations, the CPU would be often
-idle if there was not enough threads. The number of ressources is limited (semaphores
+idle if there was not enough threads. The number of resources is limited (semaphores
 and mutex for instance), thus a too large number of threads would be useless 
 (all these threads would be blocked).
 
@@ -88,10 +90,10 @@ several number of threads.
 
 ## Deadlocks avoidance
 
-Several mutex are used, it is crucial to use deadlocks avoidance technics.
+Several mutex are used, it is crucial to use deadlocks avoidance techniques.
 
-Firstly, we try for each thread not to lock two mutexes silmutaneously, to avoid
-the condition *hold and wait* wich is necessary for a deadlock.
+Firstly, we try for each thread not to lock two mutexes simultaneously, to avoid
+the condition *hold and wait* which is necessary for a deadlock.
 
 It is sometime necessary to lock several mutexes. In these cases, we define a total
 order on the mutexes, to avoid the condition *circular wait* which is also necessary
@@ -103,17 +105,17 @@ for a deadlock.
 We present here the strategy used for the choice of the peers.
 
 * Select a file randomly.
-* For this file, select the next piece deterministicaly (in increasing order).
+* For this file, select the next piece deterministically (in increasing order).
 * Select a peer randomly.
-* If the random peer selection fails, then select deterministicaly the peer 
+* If the random peer selection fails, then select deterministically the peer 
 (take the first one which have the desired piece).
-* If the peer selection fails again, then choose deterministicaly the file, 
+* If the peer selection fails again, then choose deterministically the file, 
 repeating this strategy for the piece and the peer.
 
 We thus choose randomly the file and the peer when there remains enough non-downloaded
-pieces. This avoid a situation where all clients would send their requets to the 
+pieces. This avoid a situation where all clients would send their requests to the 
 same peer.
-When there is not enough remaining pieces, we choose deterministicaly to ensure
+When there is not enough remaining pieces, we choose deterministically to ensure
 the termination.
 
 
@@ -133,8 +135,8 @@ peer do not have any.
 
 The program works correctly. It has poor performances.
 
-Necessary code improvements: better structuration, avoid the usage of some global
-variables, reduce code redudancy.
+Necessary code improvements: better structure, avoid the usage of some global
+variables, reduce code redundancy.
 
 Necessary program improvements: implement timeouts on sockets to delete a peer when
 it does not send any message, implement *Keep-Alive* messages, implement *Cancel*
