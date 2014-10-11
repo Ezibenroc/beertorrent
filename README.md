@@ -1,4 +1,4 @@
-#Simplified peer to peer protocol.
+# BeerTorrent
 
 Tom Cornebize, Agathe Herrou
 
