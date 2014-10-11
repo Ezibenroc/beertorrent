@@ -5,8 +5,8 @@ Implementation of a simplified peer to peer protocol from scratch.
 * Communication with sockets.
 * Multithreading with pthread.
 
-The tracker program was given, I only describe in the present report the client
-program.
+The tracker program and the protocol were given, we only describe in the present 
+report the client program.
 
 
 ## General structure
