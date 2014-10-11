@@ -1,8 +1,0 @@
-Tom Cornebize, Agathe Herrou
-Simplified peer to peer protocol.
-
-Compilation : make
-Launch the tracker     ./tracker
-Launch a client    ./client [files]
-
-For more details, read the associated report (in french).
