@@ -26,6 +26,7 @@ cd beertorrent
 ./../torrent_maker bar.txt
 mkdir ../WITHOUT
 cp foo.beertorrent bar.beertorrent ../WITHOUT
+cd ..
 ```
 
 **2** Launch the tracker (first terminal).
@@ -37,10 +38,12 @@ cp foo.beertorrent bar.beertorrent ../WITHOUT
 ```
 cd beertorrent
 ./../client foo.beertorrent bar.beertorrent
+cd ..
 ```
 
 **4** Launch a second client which does not have the files (third terminal).
 ```
 cd WITHOUT
 ./../client foo.beertorrent bar.beertorrent
+cd ..
 ```
