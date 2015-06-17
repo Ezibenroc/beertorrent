@@ -1,7 +1,5 @@
 # BeerTorrent
 
-Tom Cornebize
-
 Compilation: `make`
 
 Create a file foo.beertorrent with from a given file: `./torrent_maker [file]`
