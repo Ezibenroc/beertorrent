@@ -1,6 +1,6 @@
 # BeerTorrent
 
-Tom Cornebize, Agathe Herrou
+Tom Cornebize
 
 Compilation: `make`
 
